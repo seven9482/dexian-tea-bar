@@ -1128,6 +1128,29 @@
         width: 100%;
       }
     }
+    .date-filter {
+      position: sticky;
+      top: 0;
+      z-index: 6;
+      background: var(--cream);
+      border: 1px solid rgba(94, 125, 74, 0.15);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow-sm);
+    }
+    .df-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .df-seg { display: inline-flex; background: var(--white); border: 1px solid rgba(94,125,74,0.25); border-radius: 10px; overflow: hidden; }
+    .df-seg-btn { border: none; background: transparent; padding: 7px 14px; font-size: 14px; color: var(--text-secondary); cursor: pointer; }
+    .df-seg-btn.active { background: var(--primary); color: #fff; }
+    .df-fields { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 200px; }
+    .df-input { border: 1px solid rgba(94,125,74,0.25); border-radius: 8px; padding: 7px 8px; font-size: 14px; color: var(--text); background: var(--white); }
+    .df-range { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+    .df-quick { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+    .df-quick button { border: 1px solid rgba(94,125,74,0.25); background: var(--white); color: var(--primary-dark); border-radius: 16px; padding: 5px 14px; font-size: 13px; cursor: pointer; }
+    .df-quick button:active { background: var(--warm); }
+    .item-date { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
   </style>
 </head>
 <body>
@@ -1216,13 +1239,29 @@
 
       <!-- Content -->
       <div class="content">
+        <!-- 全局日期筛选条 -->
+        <div class="date-filter" id="dateFilter">
+          <div class="df-row">
+            <div class="df-seg">
+              <button class="df-seg-btn active" data-df-mode="day">单日</button>
+              <button class="df-seg-btn" data-df-mode="range">期间</button>
+            </div>
+            <div class="df-fields">
+              <input type="date" id="dfDay" class="df-input">
+              <span class="df-range" id="dfRange" style="display:none">
+                <input type="date" id="dfStart" class="df-input"> <i class="fas fa-arrow-right"></i> <input type="date" id="dfEnd" class="df-input">
+              </span>
+            </div>
+          </div>
+          <div class="df-quick">
+            <button data-df-q="today">今天</button>
+            <button data-df-q="7">近7天</button>
+            <button data-df-q="month">本月</button>
+            <button data-df-q="all">全部</button>
+          </div>
+        </div>
         <!-- 总览 -->
         <div class="page active" id="page-overview">
-          <div class="filter-tabs">
-            <button class="filter-tab active" data-period="today">今日</button>
-            <button class="filter-tab" data-period="month">本月</button>
-            <button class="filter-tab" data-period="year">今年</button>
-          </div>
           <div class="stats-grid" id="overviewStats">
             <div class="stat-card">
               <div class="stat-label"><i class="fas fa-yen-sign"></i> 累计收入</div>
@@ -1401,6 +1440,10 @@
           <label class="form-label">金额（元）</label>
           <input type="number" class="form-input" id="expenseAmount" placeholder="输入正数" min="0" step="0.01" />
         </div>
+        <div class="form-group">
+          <label class="form-label">记账日期</label>
+          <input type="date" class="form-input" id="expenseDate" />
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-secondary" onclick="closeModal('expenseModal')">取消</button>
@@ -1449,6 +1492,10 @@
         <div class="form-group">
           <label class="form-label">金额（元）</label>
           <input type="number" class="form-input" id="incomeAmount" placeholder="输入正数" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">记账日期</label>
+          <input type="date" class="form-input" id="incomeDate" />
         </div>
       </div>
       <div class="modal-footer">
@@ -1640,61 +1687,27 @@
 
   <script>
     // ========== Data ==========
-    const overviewData = {
-      today: {
-        income: 2680,
-        expense: 1240,
-        margin: 62.4,
-        profit: 1440,
-        incomeTrend: 12.5,
-        expenseTrend: -3.2,
-        marginTrend: 1.8,
-        profitTrend: 8.7,
-        text: '今日已售出糖水 18 杯、炒冰 7 份，棋牌包厢使用 3 间。当前库存茶叶充足，建议关注周末客流量高峰，提前备足小食与刮刮乐奖券。截止 14:30，今日净利润 ¥1,440，较昨日同期上升 8.7%。'
-      },
-      month: {
-        income: 48650,
-        expense: 21380,
-        margin: 64.2,
-        profit: 27270,
-        incomeTrend: 8.3,
-        expenseTrend: 2.1,
-        marginTrend: 0.5,
-        profitTrend: 11.4,
-        text: '本月累计收入 ¥48,650，支出 ¥21,380，净利润 ¥27,270。糖水与炒冰为营收主力，棋牌周末预订率较高。建议下月加大社群优惠券投放，提升工作日午市客流。'
-      },
-      year: {
-        income: 312800,
-        expense: 145600,
-        margin: 61.8,
-        profit: 167200,
-        incomeTrend: 22.6,
-        expenseTrend: 15.4,
-        marginTrend: 3.2,
-        profitTrend: 29.8,
-        text: '本年度经营稳健，累计净利润 ¥167,200。春季新茶上市带动糖水毛利提升，夏季炒冰销量爆发。建议第四季度引入热饮与围炉煮茶套餐，平滑季节性波动。'
-      }
-    };
+    // 总览统计改为基于真实数据实时计算（见 renderOverview）
 
     const SEED_EXPENSES = {
       initial: [
-        { id: 1, name: '门店装修', desc: '2026-05-10 硬装与软装', amount: 45000 },
-        { id: 2, name: '制冰机与茶具', desc: '2026-05-15 设备及首批器皿', amount: 12800 },
-        { id: 3, name: '首批原料备货', desc: '2026-06-20 茶叶、糖、水果等', amount: 6200 }
+        { id: 1, name: '门店装修', desc: '2026-05-10 硬装与软装', amount: 45000, date: '2026-05-10' },
+        { id: 2, name: '制冰机与茶具', desc: '2026-05-15 设备及首批器皿', amount: 12800, date: '2026-05-15' },
+        { id: 3, name: '首批原料备货', desc: '2026-06-20 茶叶、糖、水果等', amount: 6200, date: '2026-06-20' }
       ],
       operating: [
-        { id: 4, name: '店铺租金', desc: '2026-07-01 月度租金', amount: 8000 },
-        { id: 5, name: '员工工资', desc: '2026-07-15 两名兼职薪资', amount: 5600 },
-        { id: 6, name: '水电杂费', desc: '2026-07-20 空调及制冰用电', amount: 1200 }
+        { id: 4, name: '店铺租金', desc: '2026-07-01 月度租金', amount: 8000, date: '2026-07-01' },
+        { id: 5, name: '员工工资', desc: '2026-07-15 两名兼职薪资', amount: 5600, date: '2026-07-15' },
+        { id: 6, name: '水电杂费', desc: '2026-07-20 空调及制冰用电', amount: 1200, date: '2026-07-20' }
       ]
     };
 
     const SEED_INCOME = [
-      { id: 1, name: '糖水 - 乌龙茶冻', desc: '14:20 售出 6 杯', amount: 144 },
-      { id: 2, name: '炒冰 - 芒果绵绵冰', desc: '13:45 售出 4 份', amount: 112 },
-      { id: 3, name: '棋牌包厢 B3', desc: '12:00-15:00 3小时', amount: 168 },
-      { id: 4, name: '小食 - 盐酥鸡', desc: '13:10 售出 3 份', amount: 54 },
-      { id: 5, name: '刮刮乐', desc: '11:30-14:30 合计', amount: 86 }
+      { id: 1, name: '糖水 - 乌龙茶冻', desc: '14:20 售出 6 杯', amount: 144, date: '2026-07-28' },
+      { id: 2, name: '炒冰 - 芒果绵绵冰', desc: '13:45 售出 4 份', amount: 112, date: '2026-07-27' },
+      { id: 3, name: '棋牌包厢 B3', desc: '12:00-15:00 3小时', amount: 168, date: '2026-07-26' },
+      { id: 4, name: '小食 - 盐酥鸡', desc: '13:10 售出 3 份', amount: 54, date: '2026-07-28' },
+      { id: 5, name: '刮刮乐', desc: '11:30-14:30 合计', amount: 86, date: '2026-07-25' }
     ];
 
     const SEED_PRODUCTS = [
@@ -2016,6 +2029,10 @@
     // ========== State ==========
     let currentPage = 'overview';
     let currentPeriod = 'today';
+    let dfMode = 'range';
+    let dfDay = todayStr();
+    let dfStart = firstDayOfMonth();
+    let dfEnd = todayStr();
     let editingExpense = null; // { type, id }
     let editingIncome = null;  // income id being edited
     let confirmAction = null;  // callback for the confirm dialog
@@ -2036,6 +2053,55 @@
       toast.textContent = message;
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 2200);
+    }
+
+    function todayStr() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+    function firstDayOfMonth() {
+      const d = new Date();
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+    }
+    function addDays(str, n) {
+      const d = new Date(str + 'T00:00:00');
+      d.setDate(d.getDate() + n);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+    function inRange(d) {
+      if (!d) return true;
+      if (dfMode === 'day') return d === dfDay;
+      if (dfStart && d < dfStart) return false;
+      if (dfEnd && d > dfEnd) return false;
+      return true;
+    }
+    function dateLabel() {
+      if (dfMode === 'day') return dfDay || '未选日期';
+      if (dfStart && dfEnd) return `${dfStart} 至 ${dfEnd}`;
+      if (dfStart) return `${dfStart} 起`;
+      if (dfEnd) return `截至 ${dfEnd}`;
+      return '全部期间';
+    }
+    function renderAll() {
+      renderOverview();
+      renderExpenses();
+      renderIncome();
+    }
+    function syncDfUI() {
+      $('#dfDay').value = dfDay;
+      $('#dfStart').value = dfStart;
+      $('#dfEnd').value = dfEnd;
+      document.querySelectorAll('#dateFilter .df-seg-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.dfMode === dfMode);
+      });
+      $('#dfDay').style.display = dfMode === 'day' ? '' : 'none';
+      $('#dfRange').style.display = dfMode === 'range' ? '' : 'none';
     }
 
     // ========== Navigation ==========
@@ -2060,6 +2126,8 @@
       $$('.page').forEach(p => {
         p.classList.toggle('active', p.id === `page-${page}`);
       });
+      const df = $('#dateFilter');
+      if (df) df.style.display = ['overview', 'expenses', 'income'].includes(page) ? '' : 'none';
     }
 
     function openSidebar() {
@@ -2074,26 +2142,49 @@
       document.body.style.overflow = '';
     }
 
-    // ========== Overview ==========
+    // ========== Overview / Date Filter ==========
     function initOverview() {
-      $$('.filter-tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-          $$('.filter-tab').forEach(t => t.classList.remove('active'));
-          tab.classList.add('active');
-          currentPeriod = tab.dataset.period;
-          renderOverview();
+      const bar = $('#dateFilter');
+      bar.querySelectorAll('.df-seg-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          bar.querySelectorAll('.df-seg-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          dfMode = btn.dataset.dfMode;
+          $('#dfDay').style.display = dfMode === 'day' ? '' : 'none';
+          $('#dfRange').style.display = dfMode === 'range' ? '' : 'none';
+          renderAll();
         });
       });
-      renderOverview();
+      $('#dfDay').addEventListener('change', e => { dfDay = e.target.value; renderAll(); });
+      $('#dfStart').addEventListener('change', e => { dfStart = e.target.value; renderAll(); });
+      $('#dfEnd').addEventListener('change', e => { dfEnd = e.target.value; renderAll(); });
+      bar.querySelectorAll('.df-quick button').forEach(b => {
+        b.addEventListener('click', () => {
+          const q = b.dataset.dfQ;
+          if (q === 'today') { dfMode = 'day'; dfDay = todayStr(); }
+          else if (q === '7') { dfMode = 'range'; dfStart = addDays(todayStr(), -6); dfEnd = todayStr(); }
+          else if (q === 'month') { dfMode = 'range'; dfStart = firstDayOfMonth(); dfEnd = todayStr(); }
+          else { dfMode = 'range'; dfStart = ''; dfEnd = ''; }
+          syncDfUI();
+          renderAll();
+        });
+      });
+      syncDfUI();
+      renderAll();
     }
 
     function renderOverview() {
-      const data = overviewData[currentPeriod];
-      $('#stat-income').textContent = formatMoney(data.income);
-      $('#stat-expense').textContent = formatMoney(data.expense);
-      $('#stat-margin').textContent = data.margin + '%';
-      $('#stat-profit').textContent = formatMoney(data.profit);
-      $('#activityText').textContent = data.text;
+      const inc = incomeData.filter(i => inRange(i.date));
+      const expItems = [].concat(expenses.initial, expenses.operating).filter(i => inRange(i.date));
+      const income = inc.reduce((s, i) => s + i.amount, 0);
+      const expense = expItems.reduce((s, i) => s + i.amount, 0);
+      const profit = income - expense;
+      const margin = expense > 0 ? Math.round(profit / expense * 100) : (income > 0 ? 100 : 0);
+      $('#stat-income').textContent = formatMoney(income);
+      $('#stat-expense').textContent = formatMoney(expense);
+      $('#stat-margin').textContent = margin + '%';
+      $('#stat-profit').textContent = formatMoney(profit);
+      $('#activityText').textContent = dateLabel() + `：收入 ${formatMoney(income)}，支出 ${formatMoney(expense)}，净利润 ${formatMoney(profit)}。共 ${inc.length} 笔收入、${expItems.length} 笔支出。`;
     }
 
     // ========== Expenses ==========
@@ -2105,7 +2196,7 @@
     function renderExpenseList(type) {
       const listEl = $(`#${type}List`);
       const totalEl = $(`#${type}Total`);
-      const items = expenses[type];
+      const items = expenses[type].filter(i => inRange(i.date));
       const total = items.reduce((sum, item) => sum + item.amount, 0);
 
       totalEl.textContent = `合计：${formatMoney(total)}`;
@@ -2125,6 +2216,7 @@
           <div class="item-info">
             <div class="item-name">${escapeHtml(item.name)}</div>
             <div class="item-desc">${escapeHtml(item.desc)}</div>
+            <div class="item-date">${item.date || ''}</div>
           </div>
           <div class="item-meta">
             <span class="item-amount negative">-${formatMoney(item.amount)}</span>
@@ -2148,6 +2240,7 @@
       const nameInput = $('#expenseName');
       const descInput = $('#expenseDesc');
       const amountInput = $('#expenseAmount');
+      const dateInput = $('#expenseDate');
 
       if (id) {
         const item = expenses[type].find(i => i.id === id);
@@ -2155,11 +2248,13 @@
         nameInput.value = item.name;
         descInput.value = item.desc;
         amountInput.value = item.amount;
+        dateInput.value = item.date || todayStr();
       } else {
         title.textContent = type === 'initial' ? '新增前期投入' : '新增运营支出';
         nameInput.value = '';
         descInput.value = '';
         amountInput.value = '';
+        dateInput.value = todayStr();
       }
 
       modal.classList.add('show');
@@ -2171,6 +2266,7 @@
       const name = $('#expenseName').value.trim();
       const desc = $('#expenseDesc').value.trim();
       const amount = parseFloat($('#expenseAmount').value);
+      const date = $('#expenseDate').value || todayStr();
 
       if (!name) {
         showToast('请输入名称');
@@ -2188,10 +2284,11 @@
         item.name = name;
         item.desc = desc;
         item.amount = amount;
+        item.date = date;
         showToast('支出已更新');
       } else {
         const newId = Math.max(0, ...Object.values(expenses).flat().map(i => i.id)) + 1;
-        expenses[type].push({ id: newId, name, desc, amount });
+        expenses[type].push({ id: newId, name, desc, amount, date });
         showToast('支出已添加');
       }
 
@@ -2249,9 +2346,10 @@
     // ========== Income ==========
     function renderIncome() {
       const listEl = $('#incomeList');
-      const total = incomeData.reduce((sum, item) => sum + item.amount, 0);
+      const list = incomeData.filter(i => inRange(i.date));
+      const total = list.reduce((sum, item) => sum + item.amount, 0);
 
-      if (incomeData.length === 0) {
+      if (list.length === 0) {
         listEl.innerHTML = `
           <div class="empty-state">
             <i class="fas fa-receipt"></i>
@@ -2259,11 +2357,12 @@
           </div>
         `;
       } else {
-        listEl.innerHTML = incomeData.map(item => `
+        listEl.innerHTML = list.map(item => `
           <div class="list-item">
             <div class="item-info">
               <div class="item-name">${escapeHtml(item.name)}</div>
               <div class="item-desc">${escapeHtml(item.desc)}</div>
+            <div class="item-date">${item.date || ''}</div>
             </div>
             <div class="item-meta">
               <span class="item-amount positive">+${formatMoney(item.amount)}</span>
@@ -2290,6 +2389,7 @@
       const nameInput = $('#incomeName');
       const descInput = $('#incomeDesc');
       const amountInput = $('#incomeAmount');
+      const dateInput = $('#incomeDate');
 
       if (id) {
         const item = incomeData.find(i => i.id === id);
@@ -2297,11 +2397,13 @@
         nameInput.value = item.name;
         descInput.value = item.desc;
         amountInput.value = item.amount;
+        dateInput.value = item.date || todayStr();
       } else {
         title.textContent = '记一笔收入';
         nameInput.value = '';
         descInput.value = '';
         amountInput.value = '';
+        dateInput.value = todayStr();
       }
 
       modal.classList.add('show');
@@ -2313,6 +2415,7 @@
       const name = $('#incomeName').value.trim();
       const desc = $('#incomeDesc').value.trim();
       const amount = parseFloat($('#incomeAmount').value);
+      const date = $('#incomeDate').value || todayStr();
 
       if (!name) {
         showToast('请输入名称');
@@ -2330,10 +2433,11 @@
         item.name = name;
         item.desc = desc;
         item.amount = amount;
+        item.date = date;
         showToast('收入已更新');
       } else {
         const newId = incomeData.length ? Math.max(0, ...incomeData.map(i => i.id)) + 1 : 1;
-        incomeData.push({ id: newId, name, desc, amount });
+        incomeData.push({ id: newId, name, desc, amount, date });
         showToast('收入已记录');
       }
 
