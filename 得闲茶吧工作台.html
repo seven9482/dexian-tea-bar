@@ -1319,7 +1319,10 @@
 
         <!-- 产品管理 -->
         <div class="page" id="page-products">
-          <h2 class="page-title">产品管理</h2>
+          <div class="page-head">
+            <h2 class="page-title">产品管理</h2>
+            <button class="btn btn-primary btn-sm" onclick="openProductModal()"><i class="fas fa-plus"></i> 新增产品</button>
+          </div>
           <div class="product-grid" id="productGrid">
             <!-- dynamic -->
           </div>
@@ -1327,7 +1330,10 @@
 
         <!-- 定价策略 -->
         <div class="page" id="page-pricing">
-          <h2 class="page-title">定价策略</h2>
+          <div class="page-head">
+            <h2 class="page-title">定价策略</h2>
+            <button class="btn btn-primary btn-sm" onclick="openPricingModal()"><i class="fas fa-plus"></i> 新增定价</button>
+          </div>
           <div class="card">
             <div class="card-header">
               <div>
@@ -1351,7 +1357,10 @@
 
         <!-- 推广准备 -->
         <div class="page" id="page-marketing">
-          <h2 class="page-title">推广准备</h2>
+          <div class="page-head">
+            <h2 class="page-title">推广准备</h2>
+            <button class="btn btn-primary btn-sm" onclick="openMarketingModal()"><i class="fas fa-plus"></i> 新增推广</button>
+          </div>
           <div class="card">
             <div class="card-header">
               <div>
@@ -1507,6 +1516,123 @@
     </div>
   </div>
 
+  <!-- Product Modal -->
+  <div class="modal-overlay" id="productModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="productModalTitle">新增产品</h3>
+        <button class="modal-close" onclick="closeModal('productModal')" aria-label="关闭"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">产品名称</label>
+          <input type="text" class="form-input" id="productName" placeholder="例如：糖水" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">分类</label>
+          <input type="text" class="form-input" id="productCategory" placeholder="例如：饮品甜品" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">售价（元）</label>
+          <input type="number" class="form-input" id="productPrice" placeholder="输入售价" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">采购成本（元）</label>
+          <input type="number" class="form-input" id="productCost" placeholder="输入采购 / 原料成本" min="0" step="0.01" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('productModal')">取消</button>
+        <button class="btn btn-primary" onclick="saveProduct()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pricing Modal -->
+  <div class="modal-overlay" id="pricingModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="pricingModalTitle">新增定价</h3>
+        <button class="modal-close" onclick="closeModal('pricingModal')" aria-label="关闭"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">产品名称</label>
+          <input type="text" class="form-input" id="pricingName" placeholder="例如：糖水" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">成本（元）</label>
+          <input type="number" class="form-input" id="pricingCost" placeholder="输入成本" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">当前售价（元）</label>
+          <input type="number" class="form-input" id="pricingCurrent" placeholder="输入当前售价" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">建议售价（元）</label>
+          <input type="number" class="form-input" id="pricingSuggested" placeholder="输入建议售价" min="0" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">备注（可选）</label>
+          <input type="text" class="form-input" id="pricingReason" placeholder="例如：旺季需求旺盛" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('pricingModal')">取消</button>
+        <button class="btn btn-primary" onclick="savePricing()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Marketing Modal -->
+  <div class="modal-overlay" id="marketingModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="marketingModalTitle">新增推广</h3>
+        <button class="modal-close" onclick="closeModal('marketingModal')" aria-label="关闭"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">图标</label>
+          <select class="form-input" id="marketingIcon">
+            <option value="fa-qrcode">二维码 fa-qrcode</option>
+            <option value="fa-users">社群 fa-users</option>
+            <option value="fa-gift">赠送 fa-gift</option>
+            <option value="fa-map-marker-alt">地图 fa-map-marker-alt</option>
+            <option value="fa-video">视频 fa-video</option>
+            <option value="fa-bullhorn">喇叭 fa-bullhorn</option>
+            <option value="fa-store">门店 fa-store</option>
+            <option value="fa-percent">折扣 fa-percent</option>
+            <option value="fa-star">星标 fa-star</option>
+            <option value="fa-coffee">茶杯 fa-coffee</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">标题</label>
+          <input type="text" class="form-input" id="marketingTitle" placeholder="例如：小程序点单码打印" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">描述</label>
+          <input type="text" class="form-input" id="marketingDesc" placeholder="例如：引导顾客自助下单" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">状态</label>
+          <select class="form-input" id="marketingStatus">
+            <option value="进行中">进行中</option>
+            <option value="待审核">待审核</option>
+            <option value="已就绪">已就绪</option>
+            <option value="已完成">已完成</option>
+            <option value="已暂停">已暂停</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('marketingModal')">取消</button>
+        <button class="btn btn-primary" onclick="saveMarketing()">保存</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast -->
   <div class="toast" id="toast"></div>
 
@@ -1569,6 +1695,30 @@
       { id: 5, name: '刮刮乐', desc: '11:30-14:30 合计', amount: 86 }
     ];
 
+    const SEED_PRODUCTS = [
+      { id: 1, name: '糖水', category: '饮品甜品', price: 24, cost: 7.8 },
+      { id: 2, name: '炒冰', category: '夏日招牌', price: 28, cost: 7.5 },
+      { id: 3, name: '小食', category: '搭配食品', price: 18, cost: 8.2 },
+      { id: 4, name: '棋牌', category: '空间服务', price: 56, cost: 8.0 },
+      { id: 5, name: '刮刮乐', category: '互动游戏', price: 10, cost: 6.0 }
+    ];
+
+    const SEED_PRICING = [
+      { id: 1, name: '糖水', cost: 7.8, current: 24, suggested: 26, reason: '毛利健康，可小幅提价' },
+      { id: 2, name: '炒冰', cost: 7.5, current: 28, suggested: 30, reason: '旺季需求旺盛' },
+      { id: 3, name: '小食', cost: 8.2, current: 18, suggested: 20, reason: '毛利偏低，建议调整' },
+      { id: 4, name: '棋牌', cost: 8.0, current: 56, suggested: 58, reason: '周末预订率高' },
+      { id: 5, name: '刮刮乐', cost: 6.0, current: 10, suggested: 12, reason: '提升单客利润' }
+    ];
+
+    const SEED_MARKETING = [
+      { id: 1, icon: 'fa-qrcode', title: '小程序点单码打印', desc: '设计桌贴与立牌，引导顾客自助下单', status: '进行中' },
+      { id: 2, icon: 'fa-users', title: '微信群裂变海报', desc: '老客带新客，首单立减 3 元', status: '待审核' },
+      { id: 3, icon: 'fa-gift', title: '开业满赠活动', desc: '消费满 ¥58 赠刮刮乐一次', status: '已就绪' },
+      { id: 4, icon: 'fa-map-marker-alt', title: '地图门店认领', desc: '高德 / 腾讯地图信息完善', status: '已就绪' },
+      { id: 5, icon: 'fa-video', title: '短视频探店脚本', desc: '邀请本地博主拍摄开业视频', status: '进行中' }
+    ];
+
     const STORAGE_KEY = 'dexian_tea_bar_v1';
 
     function clone(obj) {
@@ -1582,22 +1732,28 @@
           const data = JSON.parse(raw);
           return {
             expenses: (data.expenses && Object.keys(data.expenses).length) ? data.expenses : clone(SEED_EXPENSES),
-            income: (data.income && data.income.length) ? data.income : clone(SEED_INCOME)
+            income: (data.income && data.income.length) ? data.income : clone(SEED_INCOME),
+            products: (Array.isArray(data.products) && data.products.length) ? data.products : clone(SEED_PRODUCTS),
+            pricing: (Array.isArray(data.pricing) && data.pricing.length) ? data.pricing : clone(SEED_PRICING),
+            marketing: (Array.isArray(data.marketing) && data.marketing.length) ? data.marketing : clone(SEED_MARKETING)
           };
         }
       } catch (e) {
         console.warn('读取本地数据失败，使用示例数据', e);
       }
-      return { expenses: clone(SEED_EXPENSES), income: clone(SEED_INCOME) };
+      return { expenses: clone(SEED_EXPENSES), income: clone(SEED_INCOME), products: clone(SEED_PRODUCTS), pricing: clone(SEED_PRICING), marketing: clone(SEED_MARKETING) };
     }
 
     const initialState = loadState();
     let expenses = initialState.expenses;
     let incomeData = initialState.income;
+    let products = initialState.products;
+    let pricing = initialState.pricing;
+    let marketing = initialState.marketing;
 
     function saveState() {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ expenses: expenses, income: incomeData }));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ expenses: expenses, income: incomeData, products: products, pricing: pricing, marketing: marketing }));
       } catch (e) {
         console.warn('保存本地数据失败', e);
       }
@@ -1694,6 +1850,9 @@
         const payload = JSON.stringify({
           expenses: expenses,
           income: incomeData,
+          products: products,
+          pricing: pricing,
+          marketing: marketing,
           syncedAt: Date.now()
         });
         let result;
@@ -1748,12 +1907,18 @@
         if (Array.isArray(parsed.income)) {
           incomeData = parsed.income;
         }
+        if (Array.isArray(parsed.products)) products = parsed.products;
+        if (Array.isArray(parsed.pricing)) pricing = parsed.pricing;
+        if (Array.isArray(parsed.marketing)) marketing = parsed.marketing;
         syncConfig.lastSync = Date.now();
         saveSyncConfig();
         saveState();
         suppressAutoSync = false;
         renderExpenses();
         renderIncome();
+        renderProducts();
+        renderPricing();
+        renderMarketing();
         setSyncDot('ok');
         showToast('已从云端拉取最新数据');
         updateSyncStatusLine();
@@ -1771,6 +1936,9 @@
       const data = {
         expenses: expenses,
         income: incomeData,
+        products: products,
+        pricing: pricing,
+        marketing: marketing,
         exportedAt: new Date().toISOString()
       };
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1794,9 +1962,15 @@
           const parsed = JSON.parse(reader.result);
           if (parsed.expenses) expenses = parsed.expenses;
           if (parsed.income) incomeData = parsed.income;
+          if (Array.isArray(parsed.products)) products = parsed.products;
+          if (Array.isArray(parsed.pricing)) pricing = parsed.pricing;
+          if (Array.isArray(parsed.marketing)) marketing = parsed.marketing;
           saveState();
           renderExpenses();
           renderIncome();
+          renderProducts();
+          renderPricing();
+          renderMarketing();
           showToast('已导入备份数据');
         } catch (e) {
           showToast('导入失败：文件格式不正确');
@@ -1835,29 +2009,7 @@
       return msg;
     }
 
-    const productData = [
-      { name: '糖水', category: '饮品甜品', price: 24, margin: 68, status: 'success' },
-      { name: '炒冰', category: '夏日招牌', price: 28, margin: 72, status: 'success' },
-      { name: '小食', category: '搭配食品', price: 18, margin: 55, status: 'warning' },
-      { name: '棋牌', category: '空间服务', price: 56, margin: 85, status: 'success' },
-      { name: '刮刮乐', category: '互动游戏', price: 10, margin: 40, status: 'danger' }
-    ];
-
-    const pricingData = [
-      { name: '糖水', cost: 7.8, current: 24, suggested: 26, reason: '毛利健康，可小幅提价' },
-      { name: '炒冰', cost: 7.5, current: 28, suggested: 30, reason: '旺季需求旺盛' },
-      { name: '小食', cost: 8.2, current: 18, suggested: 20, reason: '毛利偏低，建议调整' },
-      { name: '棋牌', cost: 8.0, current: 56, suggested: 58, reason: '周末预订率高' },
-      { name: '刮刮乐', cost: 6.0, current: 10, suggested: 12, reason: '提升单客利润' }
-    ];
-
-    const marketingData = [
-      { icon: 'fa-qrcode', title: '小程序点单码打印', desc: '设计桌贴与立牌，引导顾客自助下单', status: '进行中', tagClass: 'tag-info' },
-      { icon: 'fa-users', title: '微信群裂变海报', desc: '老客带新客，首单立减 3 元', status: '待审核', tagClass: 'tag-warning' },
-      { icon: 'fa-gift', title: '开业满赠活动', desc: '消费满 ¥58 赠刮刮乐一次', status: '已就绪', tagClass: 'tag-success' },
-      { icon: 'fa-map-marker-alt', title: '地图门店认领', desc: '高德 / 腾讯地图信息完善', status: '已就绪', tagClass: 'tag-success' },
-      { icon: 'fa-video', title: '短视频探店脚本', desc: '邀请本地博主拍摄开业视频', status: '进行中', tagClass: 'tag-info' }
-    ];
+    // 产品 / 定价 / 推广数据已在上方由 initialState 初始化（let products / pricing / marketing）
 
     // ========== State ==========
     let currentPage = 'overview';
@@ -1865,6 +2017,9 @@
     let editingExpense = null; // { type, id }
     let editingIncome = null;  // income id being edited
     let confirmAction = null;  // callback for the confirm dialog
+    let editingProduct = null; // product id being edited
+    let editingPricing = null; // pricing id being edited
+    let editingMarketing = null; // marketing id being edited
 
     // ========== Helpers ==========
     const $ = (selector) => document.querySelector(selector);
@@ -2078,8 +2233,14 @@
       try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
       expenses = clone(SEED_EXPENSES);
       incomeData = clone(SEED_INCOME);
+      products = clone(SEED_PRODUCTS);
+      pricing = clone(SEED_PRICING);
+      marketing = clone(SEED_MARKETING);
       renderExpenses();
       renderIncome();
+      renderProducts();
+      renderPricing();
+      renderMarketing();
       showToast('已恢复示例数据');
     }
 
@@ -2182,19 +2343,43 @@
     // ========== Products ==========
     function renderProducts() {
       const grid = $('#productGrid');
-      grid.innerHTML = productData.map(p => `
-        <div class="product-card">
-          <div class="product-top">
-            <div>
-              <div class="product-name">${escapeHtml(p.name)}</div>
-              <div class="product-category">${escapeHtml(p.category)}</div>
+      if (!products.length) {
+        grid.innerHTML = '<div class="empty-state"><i class="fas fa-box-open"></i><div>暂无产品，点右上角"新增产品"开始添加</div></div>';
+        return;
+      }
+      grid.innerHTML = products.map(p => {
+        const margin = p.price > 0 ? Math.round((p.price - p.cost) / p.price * 100) : 0;
+        const cls = marginClass(margin);
+        return `
+          <div class="product-card">
+            <div class="product-top">
+              <div>
+                <div class="product-name">${escapeHtml(p.name)}</div>
+                <div class="product-category">${escapeHtml(p.category)}</div>
+              </div>
+              <span class="tag tag-${cls}">${marginLabel(margin)}</span>
             </div>
-            <span class="tag tag-${p.status}">${marginLabel(p.margin)}</span>
-          </div>
-          <div class="product-price">${formatMoney(p.price)}</div>
-          <div style="font-size: 13px; color: var(--text-secondary);">毛利率 ${p.margin}%</div>
-        </div>
-      `).join('');
+            <div class="product-price">${formatMoney(p.price)}</div>
+            <div class="product-foot">
+              <span style="font-size:13px;color:var(--text-secondary);">成本 ${formatMoney(p.cost)} · 毛利 ${margin}%</span>
+              <div class="item-actions">
+                <button class="btn btn-secondary btn-icon" onclick="openProductModal(${p.id})" aria-label="编辑"><i class="fas fa-pen"></i></button>
+                <button class="btn btn-danger btn-icon" onclick="deleteProduct(${p.id})" aria-label="删除"><i class="fas fa-trash"></i></button>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    function marginClass(margin) {
+      if (margin >= 65) return 'success';
+      if (margin >= 50) return 'warning';
+      return 'danger';
+    }
+
+    function statusTagClass(status) {
+      const map = { '进行中': 'tag-info', '待审核': 'tag-warning', '已就绪': 'tag-success', '已完成': 'tag-success', '已暂停': 'tag-warning' };
+      return map[status] || 'tag-info';
     }
 
     function marginLabel(margin) {
@@ -2206,34 +2391,229 @@
     // ========== Pricing ==========
     function renderPricing() {
       const list = $('#pricingList');
-      list.innerHTML = pricingData.map(p => `
-        <div class="list-item">
-          <div class="item-info">
-            <div class="item-name">${escapeHtml(p.name)}</div>
-            <div class="item-desc">成本约 ¥${p.cost.toFixed(1)} · ${escapeHtml(p.reason)}</div>
-          </div>
-          <div class="item-meta">
-            <span style="font-size: 14px; color: var(--text-secondary);">
-              建议 <strong style="color: var(--danger);">¥${p.current}</strong> → <strong style="color: var(--success);">¥${p.suggested}</strong>
-            </span>
-          </div>
-        </div>
-      `).join('');
+      if (!pricing.length) {
+        list.innerHTML = '<div class="empty-state"><i class="fas fa-tags"></i><div>暂无定价建议，点右上角"新增定价"添加</div></div>';
+        return;
+      }
+      list.innerHTML = pricing.map(p => {
+        const m = p.current > 0 ? Math.round((p.current - p.cost) / p.current * 100) : 0;
+        return `
+          <div class="list-item">
+            <div class="item-info">
+              <div class="item-name">${escapeHtml(p.name)}</div>
+              <div class="item-desc">成本 ${formatMoney(p.cost)} · 毛利 ${m}%${p.reason ? ' · ' + escapeHtml(p.reason) : ''}</div>
+            </div>
+            <div class="item-meta">
+              <span style="font-size:14px;color:var(--text-secondary);">
+                建议 <strong style="color:var(--danger);">¥${p.current}</strong> → <strong style="color:var(--success);">¥${p.suggested}</strong>
+              </span>
+              <div class="item-actions">
+                <button class="btn btn-secondary btn-icon" onclick="openPricingModal(${p.id})" aria-label="编辑"><i class="fas fa-pen"></i></button>
+                <button class="btn btn-danger btn-icon" onclick="deletePricing(${p.id})" aria-label="删除"><i class="fas fa-trash"></i></button>
+              </div>
+            </div>
+          </div>`;
+      }).join('');
     }
 
     // ========== Marketing ==========
     function renderMarketing() {
       const list = $('#marketingList');
-      list.innerHTML = marketingData.map(m => `
+      if (!marketing.length) {
+        list.innerHTML = '<div class="empty-state"><i class="fas fa-bullhorn"></i><div>暂无推广计划，点右上角"新增推广"添加</div></div>';
+        return;
+      }
+      list.innerHTML = marketing.map(m => `
         <div class="promo-item">
-          <div class="promo-icon"><i class="fas ${m.icon}"></i></div>
+          <div class="promo-icon"><i class="fas ${escapeHtml(m.icon)}"></i></div>
           <div class="promo-content">
             <div class="promo-title">${escapeHtml(m.title)}</div>
             <div class="promo-desc">${escapeHtml(m.desc)}</div>
           </div>
-          <span class="tag ${m.tagClass}">${escapeHtml(m.status)}</span>
-        </div>
-      `).join('');
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex:none;">
+            <span class="tag ${statusTagClass(m.status)}">${escapeHtml(m.status)}</span>
+            <div class="item-actions">
+              <button class="btn btn-secondary btn-icon" onclick="openMarketingModal(${m.id})" aria-label="编辑"><i class="fas fa-pen"></i></button>
+              <button class="btn btn-danger btn-icon" onclick="deleteMarketing(${m.id})" aria-label="删除"><i class="fas fa-trash"></i></button>
+            </div>
+          </div>
+        </div>`).join('');
+    }
+
+    // ========== Product CRUD ==========
+    function openProductModal(id = null) {
+      editingProduct = id;
+      const modal = $('#productModal');
+      const title = $('#productModalTitle');
+      if (id) {
+        const p = products.find(i => i.id === id);
+        title.textContent = '编辑产品';
+        $('#productName').value = p.name;
+        $('#productCategory').value = p.category;
+        $('#productPrice').value = p.price;
+        $('#productCost').value = p.cost;
+      } else {
+        title.textContent = '新增产品';
+        $('#productName').value = '';
+        $('#productCategory').value = '';
+        $('#productPrice').value = '';
+        $('#productCost').value = '';
+      }
+      modal.classList.add('show');
+      $('#productName').focus();
+    }
+
+    function saveProduct() {
+      const id = editingProduct;
+      const name = $('#productName').value.trim();
+      const category = $('#productCategory').value.trim();
+      const price = parseFloat($('#productPrice').value);
+      const cost = parseFloat($('#productCost').value);
+      if (!name) { showToast('请输入产品名称'); $('#productName').focus(); return; }
+      if (isNaN(price) || price < 0) { showToast('请输入有效售价'); $('#productPrice').focus(); return; }
+      if (isNaN(cost) || cost < 0) { showToast('请输入有效成本'); $('#productCost').focus(); return; }
+      if (id) {
+        const p = products.find(i => i.id === id);
+        p.name = name; p.category = category; p.price = price; p.cost = cost;
+        showToast('产品已更新');
+      } else {
+        const newId = products.length ? Math.max(0, ...products.map(i => i.id)) + 1 : 1;
+        products.push({ id: newId, name, category, price, cost });
+        showToast('产品已添加');
+      }
+      closeModal('productModal');
+      saveState();
+      renderProducts();
+    }
+
+    function deleteProduct(id) {
+      const item = products.find(i => i.id === id);
+      $('#confirmText').innerHTML = '确定要删除产品 <strong>' + escapeHtml(item.name) + '</strong> 吗？删除后无法恢复。';
+      confirmAction = () => {
+        products = products.filter(i => i.id !== id);
+        saveState();
+        renderProducts();
+        showToast('产品已删除');
+      };
+      $('#confirmModal').classList.add('show');
+    }
+
+    // ========== Pricing CRUD ==========
+    function openPricingModal(id = null) {
+      editingPricing = id;
+      const modal = $('#pricingModal');
+      const title = $('#pricingModalTitle');
+      if (id) {
+        const p = pricing.find(i => i.id === id);
+        title.textContent = '编辑定价';
+        $('#pricingName').value = p.name;
+        $('#pricingCost').value = p.cost;
+        $('#pricingCurrent').value = p.current;
+        $('#pricingSuggested').value = p.suggested;
+        $('#pricingReason').value = p.reason || '';
+      } else {
+        title.textContent = '新增定价';
+        $('#pricingName').value = '';
+        $('#pricingCost').value = '';
+        $('#pricingCurrent').value = '';
+        $('#pricingSuggested').value = '';
+        $('#pricingReason').value = '';
+      }
+      modal.classList.add('show');
+      $('#pricingName').focus();
+    }
+
+    function savePricing() {
+      const id = editingPricing;
+      const name = $('#pricingName').value.trim();
+      const cost = parseFloat($('#pricingCost').value);
+      const current = parseFloat($('#pricingCurrent').value);
+      const suggested = parseFloat($('#pricingSuggested').value);
+      const reason = $('#pricingReason').value.trim();
+      if (!name) { showToast('请输入产品名称'); $('#pricingName').focus(); return; }
+      if (isNaN(cost) || cost < 0) { showToast('请输入有效成本'); $('#pricingCost').focus(); return; }
+      if (isNaN(current) || current < 0) { showToast('请输入当前售价'); $('#pricingCurrent').focus(); return; }
+      if (isNaN(suggested) || suggested < 0) { showToast('请输入建议售价'); $('#pricingSuggested').focus(); return; }
+      if (id) {
+        const p = pricing.find(i => i.id === id);
+        p.name = name; p.cost = cost; p.current = current; p.suggested = suggested; p.reason = reason;
+        showToast('定价已更新');
+      } else {
+        const newId = pricing.length ? Math.max(0, ...pricing.map(i => i.id)) + 1 : 1;
+        pricing.push({ id: newId, name, cost, current, suggested, reason });
+        showToast('定价已添加');
+      }
+      closeModal('pricingModal');
+      saveState();
+      renderPricing();
+    }
+
+    function deletePricing(id) {
+      const item = pricing.find(i => i.id === id);
+      $('#confirmText').innerHTML = '确定要删除 <strong>' + escapeHtml(item.name) + '</strong> 的定价建议吗？删除后无法恢复。';
+      confirmAction = () => {
+        pricing = pricing.filter(i => i.id !== id);
+        saveState();
+        renderPricing();
+        showToast('定价已删除');
+      };
+      $('#confirmModal').classList.add('show');
+    }
+
+    // ========== Marketing CRUD ==========
+    function openMarketingModal(id = null) {
+      editingMarketing = id;
+      const modal = $('#marketingModal');
+      const title = $('#marketingModalTitle');
+      if (id) {
+        const m = marketing.find(i => i.id === id);
+        title.textContent = '编辑推广';
+        $('#marketingIcon').value = m.icon;
+        $('#marketingTitle').value = m.title;
+        $('#marketingDesc').value = m.desc;
+        $('#marketingStatus').value = m.status;
+      } else {
+        title.textContent = '新增推广';
+        $('#marketingIcon').value = 'fa-qrcode';
+        $('#marketingTitle').value = '';
+        $('#marketingDesc').value = '';
+        $('#marketingStatus').value = '进行中';
+      }
+      modal.classList.add('show');
+      $('#marketingTitle').focus();
+    }
+
+    function saveMarketing() {
+      const id = editingMarketing;
+      const icon = $('#marketingIcon').value;
+      const title = $('#marketingTitle').value.trim();
+      const desc = $('#marketingDesc').value.trim();
+      const status = $('#marketingStatus').value;
+      if (!title) { showToast('请输入标题'); $('#marketingTitle').focus(); return; }
+      if (id) {
+        const m = marketing.find(i => i.id === id);
+        m.icon = icon; m.title = title; m.desc = desc; m.status = status;
+        showToast('推广已更新');
+      } else {
+        const newId = marketing.length ? Math.max(0, ...marketing.map(i => i.id)) + 1 : 1;
+        marketing.push({ id: newId, icon, title, desc, status });
+        showToast('推广已添加');
+      }
+      closeModal('marketingModal');
+      saveState();
+      renderMarketing();
+    }
+
+    function deleteMarketing(id) {
+      const item = marketing.find(i => i.id === id);
+      $('#confirmText').innerHTML = '确定要删除推广 <strong>' + escapeHtml(item.title) + '</strong> 吗？删除后无法恢复。';
+      confirmAction = () => {
+        marketing = marketing.filter(i => i.id !== id);
+        saveState();
+        renderMarketing();
+        showToast('推广已删除');
+      };
+      $('#confirmModal').classList.add('show');
     }
 
     // ========== Modal Utils ==========
@@ -2241,6 +2621,9 @@
       $(`#${modalId}`).classList.remove('show');
       if (modalId === 'expenseModal') editingExpense = null;
       if (modalId === 'incomeModal') editingIncome = null;
+      if (modalId === 'productModal') editingProduct = null;
+      if (modalId === 'pricingModal') editingPricing = null;
+      if (modalId === 'marketingModal') editingMarketing = null;
       if (modalId === 'confirmModal') confirmAction = null;
       if (modalId === 'syncModal') persistSyncConfigFromModal();
     }
@@ -2261,6 +2644,18 @@
 
     $('#incomeAmount').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') saveIncome();
+    });
+
+    $('#productCost').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') saveProduct();
+    });
+
+    $('#pricingSuggested').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') savePricing();
+    });
+
+    $('#marketingTitle').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') saveMarketing();
     });
 
     // ========== Utils ==========
