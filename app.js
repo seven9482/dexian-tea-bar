@@ -87,9 +87,21 @@ function setConn(stateName, text){
 function ensureClient(){
   if(sb) return sb;
   const {url,key}=state.sync;
-  if(!url||!key||!window.supabase) return null;
-  try{ sb = window.supabase.createClient(url.trim(), key.trim()); return sb; }
-  catch(e){ console.warn(e); return null; }
+  if(!url||!key){
+    console.warn('[Supabase] 缺少 URL 或 Key');
+    return null;
+  }
+  if(typeof window.supabase==='undefined'){
+    console.warn('[Supabase] SDK 未加载');
+    return null;
+  }
+  try{
+    sb = window.supabase.createClient(url.trim(), key.trim());
+    return sb;
+  }catch(e){
+    console.warn('[Supabase] 创建客户端失败:', e.message);
+    return null;
+  }
 }
 async function pushSync(){
   const client=ensureClient();
@@ -100,7 +112,10 @@ async function pushSync(){
     const {error}=await client.from(TABLE).upsert({id:SYNC_ROW_ID,payload,updated_at:new Date().toISOString()});
     if(error) throw error;
     setConn('connected','云端已连接');
-  }catch(e){ console.warn(e); setConn('error','同步失败'); }
+  }catch(e){
+    console.warn('[推送失败]', e.message, e.code, e.hint||'');
+    setConn('error','同步失败: '+e.message);
+  }
 }
 async function pullSync(force){
   const client=ensureClient();
@@ -117,8 +132,11 @@ async function pullSync(force){
       localStorage.setItem(LS_KEY,JSON.stringify(state));
       setConn('connected','云端已连接');
       renderAll();
-    } else { setConn('connected','云端已连接'); }
-  }catch(e){ console.warn(e); setConn('error','同步失败'); }
+    } else { setConn('connected','云端已连接（空数据）'); }
+  }catch(e){
+    console.warn('[拉取失败]', e.message, e.code, e.hint||'');
+    setConn('error','拉取失败: '+e.message);
+  }
 }
 function subscribeRealtime(){
   const client=ensureClient(); if(!client||sbChannel) return;
@@ -311,7 +329,7 @@ function renderSettings(){
     <div class="card">
       <div class="card-head"><div class="card-title"><i class="fa-regular fa-cloud"></i>云端同步（Supabase）</div></div>
       <div class="field"><label>Supabase 项目 URL</label><input class="input" id="setUrl" value="${esc(s.url)}" placeholder="https://xxxx.supabase.co"></div>
-      <div class="field"><label>Anon / Public Key</label><input class="input" id="setKey" value="${esc(s.key)}" placeholder="eyJhbGci..." type="password"></div>
+      <div class="field"><label>Anon / Public Key</label><input class="input" id="setKey" value="${esc(s.key)}" placeholder="sb_publishable_... 或 eyJhbGci..." type="password"></div>
       <div class="field"><label>共享数据 ID</label><input class="input" id="setRow" value="${SYNC_ROW_ID}" disabled></div>
       <div class="setting-row"><div><div style="font-weight:600">自动同步</div><div style="font-size:12px;color:var(--muted)">每次修改后自动推送到云端</div></div><div class="switch ${s.auto?'on':''}" id="autoSw" onclick="toggleAuto()"></div></div>
       <div class="modal-actions">
@@ -319,7 +337,7 @@ function renderSettings(){
         <button class="btn btn-primary" onclick="manualPush()"><i class="fa-solid fa-arrow-up-from-bracket"></i>立即推送</button>
         <button class="btn btn-ghost" onclick="manualPull()"><i class="fa-solid fa-arrow-down"></i>拉取</button>
       </div>
-      <div class="hint">连接状态以顶部/侧栏徽章显示：<b style="color:var(--success)">绿=已连接</b>、<b style="color:var(--danger)">红=未连接/失败</b>。多人/多设备填写<b>相同的 URL、Key、数据 ID</b> 即可共享同一份数据。</div>
+      <div class="hint">连接状态以顶部/侧栏徽章显示：<b style="color:var(--success)">绿=已连接</b>、<b style="color:var(--danger)">红=未连接/失败</b>。多人/多设备填写<b>相同的 URL、Key、数据 ID</b> 即可共享同一份数据。<br><br>💡 Key 格式说明：新版 Supabase 的公开密钥以 <code>sb_publishable_</code> 开头（旧版以 <code>eyJ</code> 开头），两种都支持，直接复制粘贴即可。</div>
     </div>
     <div class="card">
       <div class="card-head"><div class="card-title"><i class="fa-regular fa-database"></i>数据</div></div>
