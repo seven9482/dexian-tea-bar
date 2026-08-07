@@ -86,18 +86,22 @@ function setConn(stateName, text){
 
 /* ---------- JSONBin 云端同步 ---------- */
 function cleanKey(k){
-  // 彻底清理：只保留安全ASCII字符
-  return (k||'').replace(/[^\x20-\x7E]/g,'').trim();
+  // 极度严格清理：只保留可打印ASCII（不含空格以外的控制字符）
+  let s='';
+  for(let i=0;i<(k||'').length;i++){
+    const c=k.charCodeAt(i);
+    if(c>=32&&c<=126) s+=k[i]; // 仅保留 !~ 范围
+  }
+  return s.trim();
 }
-function getBinHeaders(){
-  const key=cleanKey(state.sync?.key||'');
-  const h={
-    'Content-Type':'application/json',
-    'X-Bin-Meta': 'false'
-  };
-  // 用两种header格式都试
-  h['X-Master-Key']=key;
-  h['X-Access-Key']=key;
+function safeHeaders(key){
+  const k=cleanKey(key);
+  // 调试：显示清理后的key信息
+  console.log('[Key清理] 原始长度:'+(key||'').length+' → 清理后:'+k.length+' 首尾:'+k.substring(0,5)+'...'+k.slice(-5));
+  const h=new Headers();
+  h.append('Content-Type','application/json');
+  h.append('X-Bin-Meta','false');
+  h.append('X-Master-Key',k);
   return h;
 }
 async function pushSync(){
@@ -107,7 +111,7 @@ async function pushSync(){
   try{
     const res=await fetch(JSONBIN_API+'/b/'+binId,{
       method:'PUT',
-      headers:getBinHeaders(),
+      headers:safeHeaders(state.sync?.key),
       body:JSON.stringify(state)
     });
     if(!res.ok){
@@ -127,7 +131,7 @@ async function pullSync(force){
   try{
     const res=await fetch(JSONBIN_API+'/b/'+binId+'/latest',{
       method:'GET',
-      headers:getBinHeaders()
+      headers:safeHeaders(state.sync?.key)
     });
     if(!res.ok){
       if(res.status===404&&!force) return; // 首次使用，还没创建
@@ -511,7 +515,7 @@ async function testConnection(){
       setConn('syncing','正在创建 Bin…');
       const cr=await fetch(JSONBIN_API+'/b',{
         method:'POST',
-        headers:{'Content-Type':'application/json','X-Master-Key':key,'X-Bin-Name':'dexian-tea-bar'},
+        headers:safeHeaders(key),
         body:JSON.stringify(state)
       });
       const ct=cr.headers.get('content-type')||'';
@@ -531,7 +535,7 @@ async function testConnection(){
     }
     const r=await fetch(JSONBIN_API+'/b/'+binId+'/latest',{
       method:'GET',
-      headers:{'Content-Type':'application/json','X-Master-Key':key,'X-Bin-Meta':'false'}
+      headers:safeHeaders(key)
     });
     if(!r.ok){const t=await r.text().catch(()=>'');throw new Error('读取失败 HTTP '+r.status+': '+t.substring(0,300));}
     setConn('connected','云端已连接 ✅');
