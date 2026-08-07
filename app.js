@@ -513,16 +513,36 @@ async function testConnection(){
   try{
     // 测试1: SDK是否加载
     if(typeof window.supabase==='undefined') throw new Error('Supabase SDK 未加载，请检查网络');
-    // 测试2: 创建客户端
+    // 测试2: 原始fetch测试（诊断CORS/网络）
+    const restUrl = url.replace(/\/+$/,'') + '/rest/v1/' + TABLE + '?select=id&limit=1';
+    let fetchStatus, fetchOk, fetchText='';
+    try {
+      const fr = await fetch(restUrl, {
+        method: 'GET',
+        headers: {
+          'apikey': key,
+          'Authorization': 'Bearer ' + key,
+          'Content-Type': 'application/json'
+        }
+      });
+      fetchStatus = fr.status;
+      fetchOk = fr.ok;
+      fetchText = await fr.text().catch(()=>'(无法读取响应)');
+    } catch(fe) {
+      throw new Error('网络请求失败: '+fe.message+'\n\n可能原因:\n① 当前网络无法访问 supabase.co（公司/学校网络可能屏蔽）\n② 浏览器扩展拦截了请求\n③ 需要在 Supabase 项目设置中开启 "Enable Realtime" 或检查 CORS 配置');
+    }
+    if(!fetchOk && fetchStatus!==406){
+      throw new Error('HTTP '+fetchStatus+': '+fetchText.substring(0,200));
+    }
+    // 测试3: SDK查询
     let client;
     try{ client=window.supabase.createClient(url,key); }catch(e){ throw new Error('创建客户端失败: '+e.message); }
-    // 测试3: 查询表
     const {data,error}=await client.from(TABLE).select('id').limit(1);
     if(error) throw error;
     setConn('connected','云端已连接 ✅');
     toast('连接成功！');
   }catch(e){
-    lastSyncError = JSON.stringify({message:e.message,code:e.code,hint:e.hint,status:e.status});
+    lastSyncError = e.message || JSON.stringify(e);
     console.warn('[测试连接失败]', lastSyncError);
     setConn('error','连接失败');
   }
