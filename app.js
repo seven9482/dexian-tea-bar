@@ -77,10 +77,14 @@ function saveState(){
 function scheduleSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(saveState,300); }
 
 /* ---------- 连接状态标识 ---------- */
+let lastSyncError = '';
 function setConn(stateName, text){
   const b=document.getElementById('connBadge'), c=document.getElementById('connChip'), t=document.getElementById('connChipText');
   [b,c].forEach(el=>{ if(el) el.dataset.state=stateName; });
   if(t) t.textContent=text;
+  // 在设置页显示详细错误
+  const el=document.getElementById('syncErrorBox');
+  if(el){ el.innerHTML = stateName==='error'?`<div style="color:var(--danger);font-size:13px;padding:8px 12px;background:#fef2f2;border-radius:10px;margin-top:8px;word-break:break-all">❌ ${esc(text)}<br><span style="color:var(--muted);font-size:12px">${esc(lastSyncError)}</span></div>`:''; }
 }
 
 /* ---------- Supabase ---------- */
@@ -113,8 +117,9 @@ async function pushSync(){
     if(error) throw error;
     setConn('connected','云端已连接');
   }catch(e){
-    console.warn('[推送失败]', e.message, e.code, e.hint||'');
-    setConn('error','同步失败: '+e.message);
+    lastSyncError = '推送: '+e.message+' | code:'+(e.code||'?')+' | hint:'+(e.hint||'无')+' | status:'+(e.status||'?');
+    console.warn('[推送失败]', lastSyncError);
+    setConn('error','同步失败');
   }
 }
 async function pullSync(force){
@@ -134,8 +139,9 @@ async function pullSync(force){
       renderAll();
     } else { setConn('connected','云端已连接（空数据）'); }
   }catch(e){
-    console.warn('[拉取失败]', e.message, e.code, e.hint||'');
-    setConn('error','拉取失败: '+e.message);
+    lastSyncError = '拉取: '+e.message+' | code:'+(e.code||'?')+' | hint:'+(e.hint||'无')+' | status:'+(e.status||'?');
+    console.warn('[拉取失败]', lastSyncError);
+    setConn('error','同步失败');
   }
 }
 function subscribeRealtime(){
@@ -334,9 +340,11 @@ function renderSettings(){
       <div class="setting-row"><div><div style="font-weight:600">自动同步</div><div style="font-size:12px;color:var(--muted)">每次修改后自动推送到云端</div></div><div class="switch ${s.auto?'on':''}" id="autoSw" onclick="toggleAuto()"></div></div>
       <div class="modal-actions">
         <button class="btn btn-soft" onclick="saveSyncSettings()"><i class="fa-regular fa-floppy-disk"></i>保存并连接</button>
+        <button class="btn btn-primary" onclick="testConnection()"><i class="fa-solid fa-plug"></i>🔍 测试连接</button>
         <button class="btn btn-primary" onclick="manualPush()"><i class="fa-solid fa-arrow-up-from-bracket"></i>立即推送</button>
         <button class="btn btn-ghost" onclick="manualPull()"><i class="fa-solid fa-arrow-down"></i>拉取</button>
       </div>
+      <div id="syncErrorBox"></div>
       <div class="hint">连接状态以顶部/侧栏徽章显示：<b style="color:var(--success)">绿=已连接</b>、<b style="color:var(--danger)">红=未连接/失败</b>。多人/多设备填写<b>相同的 URL、Key、数据 ID</b> 即可共享同一份数据。<br><br>💡 Key 格式说明：新版 Supabase 的公开密钥以 <code>sb_publishable_</code> 开头（旧版以 <code>eyJ</code> 开头），两种都支持，直接复制粘贴即可。</div>
     </div>
     <div class="card">
@@ -491,10 +499,35 @@ function saveSyncSettings(){
   state.sync.key=document.getElementById('setKey').value.trim();
   sb=null;sbChannel=null;
   saveState();
+  lastSyncError='';
+  document.getElementById('syncErrorBox').innerHTML='';
   initSync();
   toast('已保存，正在连接…');
 }
-function manualPush(){saveState();toast('已推送到云端');}
+async function testConnection(){
+  const url=document.getElementById('setUrl').value.trim();
+  const key=document.getElementById('setKey').value.trim();
+  if(!url||!key){toast('请先填写 URL 和 Key');return;}
+  lastSyncError='';document.getElementById('syncErrorBox').innerHTML='';
+  setConn('syncing','测试中…');
+  try{
+    // 测试1: SDK是否加载
+    if(typeof window.supabase==='undefined') throw new Error('Supabase SDK 未加载，请检查网络');
+    // 测试2: 创建客户端
+    let client;
+    try{ client=window.supabase.createClient(url,key); }catch(e){ throw new Error('创建客户端失败: '+e.message); }
+    // 测试3: 查询表
+    const {data,error}=await client.from(TABLE).select('id').limit(1);
+    if(error) throw error;
+    setConn('connected','云端已连接 ✅');
+    toast('连接成功！');
+  }catch(e){
+    lastSyncError = JSON.stringify({message:e.message,code:e.code,hint:e.hint,status:e.status});
+    console.warn('[测试连接失败]', lastSyncError);
+    setConn('error','连接失败');
+  }
+}
+function manualPush(){saveState();pushSync();toast('已推送到云端');}
 function manualPull(){pullSync(true).then(()=>toast('已从云端拉取'));}
 
 /* ---------- 数据维护 ---------- */
