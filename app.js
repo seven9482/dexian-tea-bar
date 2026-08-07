@@ -1,13 +1,10 @@
 /* ===================== 得闲茶吧 · 经营工作台 ===================== */
-/* 单页应用：本地自动保存 + Supabase 云端同步（可选） + PWA 离线 */
+/* 单页应用：本地自动保存 + JSONBin 云端同步（可选） + PWA 离线 */
 
 const LS_KEY = 'dexian_tea_bar_v2';
-const SYNC_ROW_ID = 'shared-store';   // 所有设备共享同一份数据
-const TABLE = 'tea_bar_sync';
+const JSONBIN_API = 'https://api.jsonbin.io/v3';
 
 let state = null;
-let sb = null;          // supabase client
-let sbChannel = null;
 let saveTimer = null;
 
 /* ---------- 种子数据 ---------- */
@@ -48,7 +45,7 @@ function seed(){
         {id:uid(),name:'收银设备',qty:1,amount:850},
       ]},
     ],
-    sync:{url:'',key:'',auto:true},
+    sync:{binId:'',key:'',auto:true},
   };
 }
 
@@ -87,83 +84,73 @@ function setConn(stateName, text){
   if(el){ el.innerHTML = stateName==='error'?`<div style="color:var(--danger);font-size:13px;padding:8px 12px;background:#fef2f2;border-radius:10px;margin-top:8px;word-break:break-all">❌ ${esc(text)}<br><span style="color:var(--muted);font-size:12px">${esc(lastSyncError)}</span></div>`:''; }
 }
 
-/* ---------- Supabase ---------- */
-function ensureClient(){
-  if(sb) return sb;
-  const {url,key}=state.sync;
-  if(!url||!key){
-    console.warn('[Supabase] 缺少 URL 或 Key');
-    return null;
-  }
-  if(typeof window.supabase==='undefined'){
-    console.warn('[Supabase] SDK 未加载');
-    return null;
-  }
-  try{
-    sb = window.supabase.createClient(url.trim(), key.trim());
-    return sb;
-  }catch(e){
-    console.warn('[Supabase] 创建客户端失败:', e.message);
-    return null;
-  }
+/* ---------- JSONBin 云端同步 ---------- */
+function getBinHeaders(){
+  const key=state.sync?.key||'';
+  return {
+    'Content-Type':'application/json',
+    'X-Master-Key': key,
+    'X-Bin-Meta': 'false'
+  };
 }
 async function pushSync(){
-  const client=ensureClient();
-  if(!client){ setConn('local','未连接云端'); return; }
+  const binId=state.sync?.binId;
+  if(!binId){ setConn('local','未连接云端'); return; }
   setConn('syncing','同步中…');
   try{
-    const payload=JSON.stringify(state);
-    const {error}=await client.from(TABLE).upsert({id:SYNC_ROW_ID,payload,updated_at:new Date().toISOString()});
-    if(error) throw error;
+    const res=await fetch(JSONBIN_API+'/b/'+binId,{
+      method:'PUT',
+      headers:getBinHeaders(),
+      body:JSON.stringify(state)
+    });
+    if(!res.ok){
+      const txt=await res.text().catch(()=>'');
+      throw new Error('HTTP '+res.status+': '+txt.substring(0,200));
+    }
     setConn('connected','云端已连接');
   }catch(e){
-    lastSyncError = '推送: '+e.message+' | code:'+(e.code||'?')+' | hint:'+(e.hint||'无')+' | status:'+(e.status||'?');
-    console.warn('[推送失败]', lastSyncError);
+    lastSyncError='推送: '+e.message;
+    console.warn('[推送失败]',lastSyncError);
     setConn('error','同步失败');
   }
 }
 async function pullSync(force){
-  const client=ensureClient();
-  if(!client) return;
+  const binId=state.sync?.binId;
+  if(!binId) return;
   try{
-    const {data,error}=await client.from(TABLE).select('payload,updated_at').eq('id',SYNC_ROW_ID).maybeSingle();
-    if(error) throw error;
-    if(data&&data.payload){
-      const incoming=JSON.parse(data.payload);
-      // 简单末次写入优先
-      state=Object.assign(seed(), incoming);
+    const res=await fetch(JSONBIN_API+'/b/'+binId+'/latest',{
+      method:'GET',
+      headers:getBinHeaders()
+    });
+    if(!res.ok){
+      if(res.status===404&&!force) return; // 首次使用，还没创建
+      const txt=await res.text().catch(()=>'');
+      throw new Error('HTTP '+res.status+': '+txt.substring(0,200));
+    }
+    const json=await res.json();
+    const data=json.record||json.data;
+    if(data&&typeof data==='object'){
+      state=Object.assign(seed(), data);
       ['expenses','income','products','pricing','marketing','tasks','upfront'].forEach(k=>{ if(!state[k]) state[k]=[]; });
-      if(!state.sync) state.sync={url:'',key:'',auto:true};
+      if(!state.sync) state.sync={binId:'',key:'',auto:true};
       localStorage.setItem(LS_KEY,JSON.stringify(state));
       setConn('connected','云端已连接');
       renderAll();
     } else { setConn('connected','云端已连接（空数据）'); }
   }catch(e){
-    lastSyncError = '拉取: '+e.message+' | code:'+(e.code||'?')+' | hint:'+(e.hint||'无')+' | status:'+(e.status||'?');
-    console.warn('[拉取失败]', lastSyncError);
+    lastSyncError='拉取: '+e.message;
+    console.warn('[拉取失败]',lastSyncError);
     setConn('error','同步失败');
   }
 }
-function subscribeRealtime(){
-  const client=ensureClient(); if(!client||sbChannel) return;
-  try{
-    sbChannel=client.channel('tea_bar_sync_changes')
-      .on('postgres_changes',{event:'*',schema:'public',table:TABLE,filter:`id=eq.${SYNC_ROW_ID}`},()=>{ pullSync(); })
-      .subscribe();
-  }catch(e){console.warn(e);}
-}
 function schedulePush(){
-  if(state.sync.auto) pushSync();
+  if(state.sync?.auto) pushSync();
 }
 async function initSync(){
-  const {url,key}=state.sync;
-  if(url&&key&&window.supabase){
-    const client=ensureClient();
-    if(client){
-      setConn('syncing','连接中…');
-      await pullSync();
-      subscribeRealtime();
-    }
+  const {binId,key}=state.sync||{};
+  if(binId&&key){
+    setConn('syncing','连接中…');
+    await pullSync(true);
   } else {
     setConn('local','未连接云端');
   }
@@ -333,10 +320,9 @@ function renderSettings(){
   const s=state.sync;
   document.getElementById('page-settings').innerHTML=`
     <div class="card">
-      <div class="card-head"><div class="card-title"><i class="fa-regular fa-cloud"></i>云端同步（Supabase）</div></div>
-      <div class="field"><label>Supabase 项目 URL</label><input class="input" id="setUrl" value="${esc(s.url)}" placeholder="https://xxxx.supabase.co"></div>
-      <div class="field"><label>Anon / Public Key</label><input class="input" id="setKey" value="${esc(s.key)}" placeholder="sb_publishable_... 或 eyJhbGci..." type="password"></div>
-      <div class="field"><label>共享数据 ID</label><input class="input" id="setRow" value="${SYNC_ROW_ID}" disabled></div>
+      <div class="card-head"><div class="card-title"><i class="fa-regular fa-cloud"></i>云端同步（JSONBin）</div></div>
+      <div class="field"><label>Bin ID</label><input class="input" id="setBinId" value="${esc(s.binId||'')}" placeholder="留空则自动创建新Bin"></div>
+      <div class="field"><label>Access Key（API Key）</label><input class="input" id="setKey" value="${esc(s.key)}" placeholder="从 jsonbin.io 复制的 API Key" type="password"></div>
       <div class="setting-row"><div><div style="font-weight:600">自动同步</div><div style="font-size:12px;color:var(--muted)">每次修改后自动推送到云端</div></div><div class="switch ${s.auto?'on':''}" id="autoSw" onclick="toggleAuto()"></div></div>
       <div class="modal-actions">
         <button class="btn btn-soft" onclick="saveSyncSettings()"><i class="fa-regular fa-floppy-disk"></i>保存并连接</button>
@@ -345,7 +331,7 @@ function renderSettings(){
         <button class="btn btn-ghost" onclick="manualPull()"><i class="fa-solid fa-arrow-down"></i>拉取</button>
       </div>
       <div id="syncErrorBox"></div>
-      <div class="hint">连接状态以顶部/侧栏徽章显示：<b style="color:var(--success)">绿=已连接</b>、<b style="color:var(--danger)">红=未连接/失败</b>。多人/多设备填写<b>相同的 URL、Key、数据 ID</b> 即可共享同一份数据。<br><br>💡 Key 格式说明：新版 Supabase 的公开密钥以 <code>sb_publishable_</code> 开头（旧版以 <code>eyJ</code> 开头），两种都支持，直接复制粘贴即可。</div>
+      <div class="hint">连接状态以顶部/侧栏徽章显示：<b style="color:var(--success)">绿=已连接</b>、<b style="color:var(--danger)">红=未连接/失败</b>。<br><br>📋 <b>获取步骤：</b><br>① 打开 <a href="https://jsonbin.io" target="_blank">jsonbin.io</a>，注册/登录<br>② 点右上角头像 → <b>API Keys</b> → 创建一个 Key 并复制<br>③ Bin ID 留空点「保存并连接」会自动创建<br><br>💡 多人/多设备填写<b>相同的 Bin ID 和 Access Key</b> 即可共享数据。</div>
     </div>
     <div class="card">
       <div class="card-head"><div class="card-title"><i class="fa-regular fa-database"></i>数据</div></div>
@@ -495,9 +481,9 @@ function updItem(pid,iid,field,val){const p=state.upfront.find(x=>x.id===pid);co
 /* ---------- 同步设置 ---------- */
 function toggleAuto(){state.sync.auto=!state.sync.auto;saveState();renderSettings();}
 function saveSyncSettings(){
-  state.sync.url=document.getElementById('setUrl').value.trim();
+  state.sync.binId=document.getElementById('setBinId').value.trim();
   state.sync.key=document.getElementById('setKey').value.trim();
-  sb=null;sbChannel=null;
+  state.sync.url=''; // 清除旧的Supabase URL
   saveState();
   lastSyncError='';
   document.getElementById('syncErrorBox').innerHTML='';
@@ -505,45 +491,43 @@ function saveSyncSettings(){
   toast('已保存，正在连接…');
 }
 async function testConnection(){
-  const url=document.getElementById('setUrl').value.trim();
-  const key=document.getElementById('setKey').value.trim();
-  if(!url||!key){toast('请先填写 URL 和 Key');return;}
+  const binId=document.getElementById('setBinId')?.value?.trim()||state.sync?.binId||'';
+  const key=document.getElementById('setKey')?.value?.trim()||state.sync?.key||'';
+  if(!binId||!key){toast('请先填写 Bin ID 和 Access Key');return;}
   lastSyncError='';document.getElementById('syncErrorBox').innerHTML='';
   setConn('syncing','测试中…');
   try{
-    // 测试1: SDK是否加载
-    if(typeof window.supabase==='undefined') throw new Error('Supabase SDK 未加载，请检查网络');
-    // 测试2: 原始fetch测试（诊断CORS/网络）
-    const restUrl = url.replace(/\/+$/,'') + '/rest/v1/' + TABLE + '?select=id&limit=1';
-    let fetchStatus, fetchOk, fetchText='';
-    try {
-      const fr = await fetch(restUrl, {
-        method: 'GET',
-        headers: {
-          'apikey': key,
-          'Authorization': 'Bearer ' + key,
-          'Content-Type': 'application/json'
-        }
+    // 测试网络连通性
+    const testUrl=JSONBIN_API+'/b/'+binId+'/latest';
+    let fetchStatus,fetchText='';
+    try{
+      const r=await fetch(testUrl,{
+        method:'GET',
+        headers:{'Content-Type':'application/json','X-Master-Key':key,'X-Bin-Meta':'false'}
       });
-      fetchStatus = fr.status;
-      fetchOk = fr.ok;
-      fetchText = await fr.text().catch(()=>'(无法读取响应)');
-    } catch(fe) {
-      throw new Error('网络请求失败: '+fe.message+'\n\n可能原因:\n① 当前网络无法访问 supabase.co（公司/学校网络可能屏蔽）\n② 浏览器扩展拦截了请求\n③ 需要在 Supabase 项目设置中开启 "Enable Realtime" 或检查 CORS 配置');
+      fetchStatus=r.status;
+      fetchText=await r.text().catch(()=>'');
+    }catch(fe){
+      throw new Error('网络请求失败: '+fe.message+'\n\n请检查：\n① 网络是否正常\n② Bin ID 和 Key 是否正确\n③ 是否开了VPN/代理（JSONBin一般不需要）');
     }
-    if(!fetchOk && fetchStatus!==406){
-      throw new Error('HTTP '+fetchStatus+': '+fetchText.substring(0,200));
+    if(fetchStatus===404){
+      // Bin不存在，尝试创建
+      const cr=await fetch(JSONBIN_API+'/b',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-Master-Key':key,'X-Bin-Name':'得闲茶吧数据'},
+        body:JSON.stringify(state)
+      });
+      if(!cr.ok){const t=await cr.text().catch(()=>'');throw new Error('创建Bin失败 HTTP '+cr.status+': '+t.substring(0,200));}
+      const cj=await cr.json();
+      if(cj.metadata?.id) document.getElementById('setBinId').value=cj.metadata.id;
+      throw new Error('Bin不存在，已自动创建新Bin！请点"保存并连接"。新Bin ID: '+(cj.metadata?.id||'?'));
     }
-    // 测试3: SDK查询
-    let client;
-    try{ client=window.supabase.createClient(url,key); }catch(e){ throw new Error('创建客户端失败: '+e.message); }
-    const {data,error}=await client.from(TABLE).select('id').limit(1);
-    if(error) throw error;
+    if(fetchStatus>=400) throw new Error('HTTP '+fetchStatus+': '+fetchText.substring(0,200));
     setConn('connected','云端已连接 ✅');
     toast('连接成功！');
   }catch(e){
-    lastSyncError = e.message || JSON.stringify(e);
-    console.warn('[测试连接失败]', lastSyncError);
+    lastSyncError=e.message||JSON.stringify(e);
+    console.warn('[测试连接失败]',lastSyncError);
     setConn('error','连接失败');
   }
 }
