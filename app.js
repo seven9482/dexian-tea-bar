@@ -85,13 +85,20 @@ function setConn(stateName, text){
 }
 
 /* ---------- JSONBin 云端同步 ---------- */
+function cleanKey(k){
+  // 彻底清理：只保留安全ASCII字符
+  return (k||'').replace(/[^\x20-\x7E]/g,'').trim();
+}
 function getBinHeaders(){
-  const key=state.sync?.key||'';
-  return {
+  const key=cleanKey(state.sync?.key||'');
+  const h={
     'Content-Type':'application/json',
-    'X-Master-Key': key,
     'X-Bin-Meta': 'false'
   };
+  // 用两种header格式都试
+  h['X-Master-Key']=key;
+  h['X-Access-Key']=key;
+  return h;
 }
 async function pushSync(){
   const binId=state.sync?.binId;
@@ -482,7 +489,7 @@ function updItem(pid,iid,field,val){const p=state.upfront.find(x=>x.id===pid);co
 function toggleAuto(){state.sync.auto=!state.sync.auto;saveState();renderSettings();}
 function saveSyncSettings(){
   state.sync.binId=document.getElementById('setBinId').value.trim();
-  state.sync.key=document.getElementById('setKey').value.trim();
+  state.sync.key=cleanKey(document.getElementById('setKey').value);
   state.sync.url=''; // 清除旧的Supabase URL
   saveState();
   lastSyncError='';
@@ -491,41 +498,46 @@ function saveSyncSettings(){
   toast('已保存，正在连接…');
 }
 async function testConnection(){
-  const binId=document.getElementById('setBinId')?.value?.trim()||state.sync?.binId||'';
-  const key=document.getElementById('setKey')?.value?.trim()||state.sync?.key||'';
+  let binId=document.getElementById('setBinId')?.value?.trim()||state.sync?.binId||'';
+  let rawKey=document.getElementById('setKey')?.value||'';
+  const key=cleanKey(rawKey);
   if(!key){toast('请先填写 Access Key');return;}
+  // 更新输入框为清理后的值
+  document.getElementById('setKey').value=key;
   lastSyncError='';document.getElementById('syncErrorBox').innerHTML='';
   setConn('syncing','测试中…');
   try{
-    // 如果没有Bin ID，自动创建
-    let finalBinId = binId;
-    if(!finalBinId){
+    if(!binId){
       setConn('syncing','正在创建 Bin…');
       const cr=await fetch(JSONBIN_API+'/b',{
         method:'POST',
-        headers:{'Content-Type':'application/json','X-Master-Key':key,'X-Bin-Name':'得闲茶吧数据'},
+        headers:{'Content-Type':'application/json','X-Master-Key':key,'X-Bin-Name':'dexian-tea-bar'},
         body:JSON.stringify(state)
       });
-      if(!cr.ok){const t=await cr.text().catch(()=>'');throw new Error('创建Bin失败 HTTP '+cr.status+': '+t.substring(0,200));}
-      const cj=await cr.json();
-      finalBinId=cj.metadata?.id;
-      if(finalBinId){
-        document.getElementById('setBinId').value=finalBinId;
-        state.sync.binId=finalBinId;
+      const ct=cr.headers.get('content-type')||'';
+      let respBody='';
+      try{respBody=await cr.text();}catch(e){respBody='(无法读取)';}
+      if(!cr.ok) throw new Error('创建Bin失败 HTTP '+cr.status+': '+respBody.substring(0,300));
+      let cj;
+      try{cj=JSON.parse(respBody);}catch(e){throw new Error('返回格式错误: '+respBody.substring(0,200));}
+      binId=cj.metadata?.id;
+      if(binId){
+        document.getElementById('setBinId').value=binId;
+        state.sync.binId=binId;
+        state.sync.key=key;
         saveState();
       }
-      if(!finalBinId) throw new Error('创建成功但未返回 Bin ID');
+      if(!binId) throw new Error('创建成功但未返回 Bin ID');
     }
-    // 测试读取
-    const r=await fetch(JSONBIN_API+'/b/'+finalBinId+'/latest',{
+    const r=await fetch(JSONBIN_API+'/b/'+binId+'/latest',{
       method:'GET',
       headers:{'Content-Type':'application/json','X-Master-Key':key,'X-Bin-Meta':'false'}
     });
-    if(!r.ok){const t=await r.text().catch(()=>'');throw new Error('读取失败 HTTP '+r.status+': '+t.substring(0,200));}
+    if(!r.ok){const t=await r.text().catch(()=>'');throw new Error('读取失败 HTTP '+r.status+': '+t.substring(0,300));}
     setConn('connected','云端已连接 ✅');
-    toast('连接成功！Bin ID: '+finalBinId);
+    toast('连接成功！');
   }catch(e){
-    lastSyncError=e.message||JSON.stringify(e);
+    lastSyncError=e.message||String(e);
     console.warn('[测试连接失败]',lastSyncError);
     setConn('error','连接失败');
   }
