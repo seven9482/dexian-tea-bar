@@ -493,25 +493,14 @@ function saveSyncSettings(){
 async function testConnection(){
   const binId=document.getElementById('setBinId')?.value?.trim()||state.sync?.binId||'';
   const key=document.getElementById('setKey')?.value?.trim()||state.sync?.key||'';
-  if(!binId||!key){toast('请先填写 Bin ID 和 Access Key');return;}
+  if(!key){toast('请先填写 Access Key');return;}
   lastSyncError='';document.getElementById('syncErrorBox').innerHTML='';
   setConn('syncing','测试中…');
   try{
-    // 测试网络连通性
-    const testUrl=JSONBIN_API+'/b/'+binId+'/latest';
-    let fetchStatus,fetchText='';
-    try{
-      const r=await fetch(testUrl,{
-        method:'GET',
-        headers:{'Content-Type':'application/json','X-Master-Key':key,'X-Bin-Meta':'false'}
-      });
-      fetchStatus=r.status;
-      fetchText=await r.text().catch(()=>'');
-    }catch(fe){
-      throw new Error('网络请求失败: '+fe.message+'\n\n请检查：\n① 网络是否正常\n② Bin ID 和 Key 是否正确\n③ 是否开了VPN/代理（JSONBin一般不需要）');
-    }
-    if(fetchStatus===404){
-      // Bin不存在，尝试创建
+    // 如果没有Bin ID，自动创建
+    let finalBinId = binId;
+    if(!finalBinId){
+      setConn('syncing','正在创建 Bin…');
       const cr=await fetch(JSONBIN_API+'/b',{
         method:'POST',
         headers:{'Content-Type':'application/json','X-Master-Key':key,'X-Bin-Name':'得闲茶吧数据'},
@@ -519,12 +508,22 @@ async function testConnection(){
       });
       if(!cr.ok){const t=await cr.text().catch(()=>'');throw new Error('创建Bin失败 HTTP '+cr.status+': '+t.substring(0,200));}
       const cj=await cr.json();
-      if(cj.metadata?.id) document.getElementById('setBinId').value=cj.metadata.id;
-      throw new Error('Bin不存在，已自动创建新Bin！请点"保存并连接"。新Bin ID: '+(cj.metadata?.id||'?'));
+      finalBinId=cj.metadata?.id;
+      if(finalBinId){
+        document.getElementById('setBinId').value=finalBinId;
+        state.sync.binId=finalBinId;
+        saveState();
+      }
+      if(!finalBinId) throw new Error('创建成功但未返回 Bin ID');
     }
-    if(fetchStatus>=400) throw new Error('HTTP '+fetchStatus+': '+fetchText.substring(0,200));
+    // 测试读取
+    const r=await fetch(JSONBIN_API+'/b/'+finalBinId+'/latest',{
+      method:'GET',
+      headers:{'Content-Type':'application/json','X-Master-Key':key,'X-Bin-Meta':'false'}
+    });
+    if(!r.ok){const t=await r.text().catch(()=>'');throw new Error('读取失败 HTTP '+r.status+': '+t.substring(0,200));}
     setConn('connected','云端已连接 ✅');
-    toast('连接成功！');
+    toast('连接成功！Bin ID: '+finalBinId);
   }catch(e){
     lastSyncError=e.message||JSON.stringify(e);
     console.warn('[测试连接失败]',lastSyncError);
