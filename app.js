@@ -599,6 +599,10 @@ function init(){
   document.getElementById('hamburger').addEventListener('click',()=>{document.getElementById('sidebar').classList.add('open');document.getElementById('backdrop').classList.add('show');});
   document.getElementById('backdrop').addEventListener('click',()=>{document.getElementById('sidebar').classList.remove('open');document.getElementById('backdrop').classList.remove('show');});
   initSync();
+  // 自动拉取云端最新数据（多设备近实时同步）
+  setInterval(()=>{
+    if(state.sync?.binId && state.sync?.key){ pullSync(false); }
+  }, 15000);
   // PWA
   if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 }
