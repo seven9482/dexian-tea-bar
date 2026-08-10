@@ -75,6 +75,22 @@ function scheduleSave(){ clearTimeout(saveTimer); saveTimer=setTimeout(saveState
 
 /* ---------- 连接状态标识 ---------- */
 let lastSyncError = '';
+/* 同步日志（最多保留30条） */
+let syncLog = [];
+function addSyncLog(action, ok, detail){
+  const now=new Date();
+  const t=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0')+':'+now.getSeconds().toString().padStart(2,'0');
+  syncLog.unshift({time:t,action,ok,detail});
+  if(syncLog.length>30) syncLog.pop();
+  renderSyncLog();
+}
+function renderSyncLog(){
+  const el=document.getElementById('syncLogBox');
+  if(!el) return;
+  if(!syncLog.length){ el.innerHTML=''; return; }
+  el.innerHTML='<div style="margin-top:10px"><div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px">📋 同步日志</div>'+
+    syncLog.map(l=>`<div style="font-size:11.5px;padding:3px 8px;border-radius:6px;margin-bottom:2px;background:${l.ok?'#f0fdf4':'#fef2f2'};color:${l.ok?'#166534':'#991b1b'};word-break:break-all">${l.time} ${l.action} ${l.ok?'✅':'❌'} ${esc(l.detail)}</div>`).join('')+'</div>';
+}
 function setConn(stateName, text){
   const b=document.getElementById('connBadge'), c=document.getElementById('connChip'), t=document.getElementById('connChipText');
   [b,c].forEach(el=>{ if(el) el.dataset.state=stateName; });
@@ -106,23 +122,27 @@ function safeHeaders(key){
 }
 async function pushSync(){
   const binId=state.sync?.binId;
-  if(!binId){ setConn('local','未连接云端'); return; }
+  if(!binId){ setConn('local','未连接云端'); addSyncLog('推送',false,'未配置Bin ID'); return; }
   setConn('syncing','同步中…');
   try{
+    const body=JSON.stringify(state);
     const res=await fetch(JSONBIN_API+'/b/'+binId,{
       method:'PUT',
       headers:safeHeaders(state.sync?.key),
-      body:JSON.stringify(state)
+      body:body
     });
     if(!res.ok){
       const txt=await res.text().catch(()=>'');
-      throw new Error('HTTP '+res.status+': '+txt.substring(0,200));
+      const msg='HTTP '+res.status+': '+txt.substring(0,200);
+      throw new Error(msg);
     }
     setConn('connected','云端已连接');
+    addSyncLog('推送',true,`数据大小 ${body.length} 字符`);
   }catch(e){
     lastSyncError='推送: '+e.message;
     console.warn('[推送失败]',lastSyncError);
     setConn('error','同步失败');
+    addSyncLog('推送',false,e.message.slice(0,100));
   }
 }
 async function pullSync(force){
@@ -136,7 +156,8 @@ async function pullSync(force){
     if(!res.ok){
       if(res.status===404&&!force) return; // 首次使用，还没创建
       const txt=await res.text().catch(()=>'');
-      throw new Error('HTTP '+res.status+': '+txt.substring(0,200));
+      const msg='HTTP '+res.status+': '+txt.substring(0,200);
+      throw new Error(msg);
     }
     const json=await res.json();
     const data=json.record||json.data;
@@ -145,11 +166,13 @@ async function pullSync(force){
       localStorage.setItem(LS_KEY,JSON.stringify(state));
       setConn('connected','云端已连接');
       renderAll();
-    } else { setConn('connected','云端已连接（空数据）'); }
+      addSyncLog('拉取',true,`合并完成，upfront=${state.upfront.length}人`);
+    } else { setConn('connected','云端已连接（空数据）'); addSyncLog('拉取',true,'云端为空'); }
   }catch(e){
     lastSyncError='拉取: '+e.message;
     console.warn('[拉取失败]',lastSyncError);
     setConn('error','同步失败');
+    addSyncLog('拉取',false,e.message.slice(0,100));
   }
 }
 function schedulePush(){
@@ -358,11 +381,15 @@ function renderSettings(){
         <button class="btn btn-ghost" onclick="manualPull()"><i class="fa-solid fa-arrow-down"></i>拉取</button>
       </div>
       <div class="modal-actions" style="margin-top:8px">
+        <button class="btn btn-danger" onclick="forceBidirectionalSync()" style="font-weight:700"><i class="fa-solid fa-rotate"></i>🔄 强制双向同步（推荐）</button>
+      </div>
+      <div class="modal-actions" style="margin-top:8px">
         <button class="btn btn-soft" onclick="copyConfigString()"><i class="fa-solid fa-copy"></i>📋 复制我的配置串</button>
         <button class="btn btn-soft" onclick="shareConfig()"><i class="fa-solid fa-qrcode"></i>📱 生成分享码（扫码同步）</button>
       </div>
       <div id="syncErrorBox"></div>
-      <div class="hint">连接状态以顶部/侧栏徽章显示：<b style="color:var(--success)">绿=已连接</b>、<b style="color:var(--danger)">红=未连接/失败</b>。<br><br>📋 <b>获取步骤：</b><br>① 打开 <a href="https://jsonbin.io" target="_blank">jsonbin.io</a>，注册/登录<br>② 点右上角头像 → <b>API Keys</b> → 创建一个 Key 并复制<br>③ Bin ID 留空点「保存并连接」会自动创建<br><br>💡 多人/多设备填写<b>相同的 Bin ID 和 Access Key</b> 即可共享数据。</div>
+      <div id="syncLogBox"></div>
+      <div class="hint">连接状态以顶部/侧栏徽章显示：<b style="color:var(--success)">绿=已连接</b>、<b style="color:var(--danger)">红=未连接/失败</b>。<br><br>🔄 <b>推荐操作：</b>任一端改完数据后，点「<b>强制双向同步</b>」→ 推本地+拉云端+合并+再推 → 两端立刻一致。<br><br>📋 <b>获取步骤：</b><br>① 打开 <a href="https://jsonbin.io" target="_blank">jsonbin.io</a>，注册/登录<br>② 点右上角头像 → <b>API Keys</b> → 创建一个 Key 并复制<br>③ Bin ID 留空点「保存并连接」会自动创建<br><br>💡 多人/多设备填写<b>相同的 Bin ID 和 Access Key</b> 即可共享数据。</div>
     </div>
     <div class="card">
       <div class="card-head"><div class="card-title"><i class="fa-regular fa-database"></i>数据</div></div>
@@ -373,6 +400,7 @@ function renderSettings(){
       </div>
       <div class="hint">所有数据默认保存在本机浏览器，关闭再打开不会丢失。开启云端同步后，多设备自动保持一致。</div>
     </div>`;
+  renderSyncLog();
 }
 
 /* ---------- 渲染全部 ---------- */
@@ -511,15 +539,39 @@ function updItem(pid,iid,field,val){const p=state.upfront.find(x=>x.id===pid);co
 
 /* ---------- 同步设置 ---------- */
 function toggleAuto(){state.sync.auto=!state.sync.auto;saveState();renderSettings();}
-function saveSyncSettings(){
-  state.sync.binId=document.getElementById('setBinId').value.trim();
-  state.sync.key=cleanKey(document.getElementById('setKey').value);
-  state.sync.url=''; // 清除旧的Supabase URL
-  saveState();
-  lastSyncError='';
-  document.getElementById('syncErrorBox').innerHTML='';
-  initSync();
-  toast('已保存，正在连接…');
+/* 用当前 Key 在 JSONBin 创建一个新 Bin，返回新 Bin ID */
+async function createBin(key){
+  const cr=await fetch(JSONBIN_API+'/b',{method:'POST',headers:safeHeaders(key),body:JSON.stringify(state)});
+  let respBody='';
+  try{respBody=await cr.text();}catch(e){respBody='(无法读取)';}
+  if(!cr.ok) throw new Error('创建Bin失败 HTTP '+cr.status+': '+respBody.substring(0,300));
+  let cj;
+  try{cj=JSON.parse(respBody);}catch(e){throw new Error('返回格式错误: '+respBody.substring(0,200));}
+  const id=cj.metadata?.id;
+  if(!id) throw new Error('创建成功但未返回 Bin ID');
+  return id;
+}
+async function saveSyncSettings(){
+  const key=cleanKey(document.getElementById('setKey').value);
+  if(!key){toast('请先填写 Access Key');return;}
+  let binId=document.getElementById('setBinId').value.trim();
+  setConn('syncing','正在连接…');
+  try{
+    if(!binId){ setConn('syncing','正在创建新仓库…'); binId=await createBin(key); toast('已创建新仓库'); }
+    state.sync.binId=binId;
+    state.sync.key=key;
+    state.sync.url=''; // 清除旧的Supabase URL
+    saveState();
+    lastSyncError='';
+    const sb=document.getElementById('syncErrorBox'); if(sb) sb.innerHTML='';
+    await initSync();
+    renderSettings();
+    toast('已保存并连接');
+  }catch(e){
+    lastSyncError=e.message||String(e);
+    setConn('error','连接失败');
+    toast('连接失败：'+lastSyncError.slice(0,60));
+  }
 }
 async function testConnection(){
   let binId=document.getElementById('setBinId')?.value?.trim()||state.sync?.binId||'';
@@ -533,25 +585,11 @@ async function testConnection(){
   try{
     if(!binId){
       setConn('syncing','正在创建 Bin…');
-      const cr=await fetch(JSONBIN_API+'/b',{
-        method:'POST',
-        headers:safeHeaders(key),
-        body:JSON.stringify(state)
-      });
-      const ct=cr.headers.get('content-type')||'';
-      let respBody='';
-      try{respBody=await cr.text();}catch(e){respBody='(无法读取)';}
-      if(!cr.ok) throw new Error('创建Bin失败 HTTP '+cr.status+': '+respBody.substring(0,300));
-      let cj;
-      try{cj=JSON.parse(respBody);}catch(e){throw new Error('返回格式错误: '+respBody.substring(0,200));}
-      binId=cj.metadata?.id;
-      if(binId){
-        document.getElementById('setBinId').value=binId;
-        state.sync.binId=binId;
-        state.sync.key=key;
-        saveState();
-      }
-      if(!binId) throw new Error('创建成功但未返回 Bin ID');
+      binId=await createBin(key);
+      document.getElementById('setBinId').value=binId;
+      state.sync.binId=binId;
+      state.sync.key=key;
+      saveState();
     }
     const r=await fetch(JSONBIN_API+'/b/'+binId+'/latest',{
       method:'GET',
@@ -559,6 +597,7 @@ async function testConnection(){
     });
     if(!r.ok){const t=await r.text().catch(()=>'');throw new Error('读取失败 HTTP '+r.status+': '+t.substring(0,300));}
     setConn('connected','云端已连接 ✅');
+    renderSettings();
     toast('连接成功！');
   }catch(e){
     lastSyncError=e.message||String(e);
@@ -566,8 +605,28 @@ async function testConnection(){
     setConn('error','连接失败');
   }
 }
-function manualPush(){saveState();pushSync();toast('已推送到云端');}
-function manualPull(){pullSync(true).then(()=>toast('已从云端拉取'));}
+async function manualPush(){saveState();await pushSync();toast('推送完成，请查看上方日志');}
+async function manualPull(){await pullSync(true);toast('拉取完成，请查看上方日志');}
+/* 强制双向同步：先推本地→拉云端合并→再推合并结果 */
+async function forceBidirectionalSync(){
+  if(!state.sync?.binId||!state.sync?.key){toast('未配置云端');return;}
+  setConn('syncing','双向同步中…');
+  addSyncLog('双向同步',false,'开始…');
+  try{
+    // 1. 推送本地数据
+    await pushSync();
+    // 2. 拉取云端数据并合并
+    await pullSync(true);
+    // 3. 再把合并后的结果推上去（确保两端一致）
+    await pushSync();
+    setConn('connected','云端已连接');
+    addSyncLog('双向同步',true,'完成！两端数据已统一');
+    toast('✅ 双向同步完成！');
+  }catch(e){
+    addSyncLog('双向同步',false,e.message.slice(0,100));
+    toast('❌ 同步失败：'+e.message.slice(0,50));
+  }
+}
 
 /* ---------- 数据维护 ---------- */
 function exportData(){
