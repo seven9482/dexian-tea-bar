@@ -345,6 +345,7 @@ function renderSettings(){
     <div class="card">
       <div class="card-head"><div class="card-title"><i class="fa-regular fa-cloud"></i>云端同步（JSONBin）</div></div>
       <div class="card-sub" style="font-size:12px;color:var(--muted);padding:0 4px 8px">📱 多设备同步：在已连上的设备点「复制我的配置串」，把生成的那一串通过微信发给另一台设备，在下面「粘贴配置串」里粘贴即可，不用手动填两个框。</div>
+      <div style="font-size:13px;padding:6px 10px;background:#f3f7f8;border-radius:10px;margin-bottom:10px">当前仓库 Bin ID：<b id="curBin" style="color:var(--primary)">${esc(s.binId||'（未设置）')}</b>　状态：<b id="curStatus">${esc(s.binId&&s.key?'已配置':'未配置')}</b></div>
       <div class="field"><label>① 粘贴对方发来的配置串（一键同步）</label><input class="input" id="cfgStr" placeholder="粘贴 bin=...&key=... 这一整串"><button class="btn btn-primary" style="margin-top:8px" onclick="importConfigString()"><i class="fa-solid fa-link"></i>粘贴并连接</button></div>
       <div class="field"><label>② 或手动填写</label></div>
       <div class="field"><label>Bin ID</label><input class="input" id="setBinId" value="${esc(s.binId||'')}" placeholder="留空则自动创建新Bin"></div>
@@ -654,6 +655,7 @@ function importConfigString(){
   state.sync.key=key;
   saveState();
   initSync();
+  renderSettings(); // 刷新显示，让“当前仓库 Bin ID”立即更新
   toast('已导入并连接，正在拉取数据…');
 }
 document.addEventListener('DOMContentLoaded',init);

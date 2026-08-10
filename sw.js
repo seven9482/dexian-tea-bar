@@ -1,5 +1,5 @@
 /* 得闲茶吧 · 离线缓存（保证稳定打开） */
-const CACHE = 'dexian-v1';
+const CACHE = 'dexian-v2';
 const SHELL = [
   './', './index.html', './styles.css', './app.js',
   './manifest.json', './apple-touch-icon.png', './icon-192.png', './icon-512.png'
