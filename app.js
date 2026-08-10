@@ -393,6 +393,7 @@ function renderSettings(){
         <button class="btn btn-primary" onclick="testConnection()"><i class="fa-solid fa-plug"></i>🔍 测试连接</button>
         <button class="btn btn-primary" onclick="manualPush()"><i class="fa-solid fa-arrow-up-from-bracket"></i>立即推送</button>
         <button class="btn btn-ghost" onclick="manualPull()"><i class="fa-solid fa-arrow-down"></i>拉取</button>
+        <button class="btn btn-warning" onclick="forcePullFromCloud()" style="font-weight:700;color:#fff;background:linear-gradient(135deg,#f59e0b,#ef4444)"><i class="fa-solid fa-cloud-arrow-down"></i>🔥 强制覆盖拉取（推荐）</button>
       </div>
       <div class="modal-actions" style="margin-top:8px">
         <button class="btn btn-danger" onclick="forceBidirectionalSync()" style="font-weight:700"><i class="fa-solid fa-rotate"></i>🔄 强制双向同步（推荐）</button>
@@ -621,6 +622,40 @@ async function testConnection(){
 }
 async function manualPush(){saveState();await pushSync();toast('推送完成，请查看上方日志');}
 async function manualPull(){await pullSync(true);toast('拉取完成，请查看上方日志');}
+/* 🔥 强制覆盖拉取：直接用云端数据完全替换本地（不合并），100%确保和云端一致 */
+async function forcePullFromCloud(){
+  const binId=state.sync?.binId;
+  const key=state.sync?.key;
+  if(!binId||!key){toast('未配置云端');return;}
+  setConn('syncing','正在从云端强制拉取…');
+  addSyncLog('强制覆盖',false,'开始…');
+  try{
+    const res=await fetch(JSONBIN_API+'/b/'+binId+'/latest',{
+      method:'GET',headers:safeHeaders(key)
+    });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const rawText=await res.text();
+    addSyncLog('强制覆盖',true,'GET '+rawText.length+'字符');
+    let json=null;
+    try{json=JSON.parse(rawText);}catch(e){}
+    const data=(json&&typeof json.record==='object')?json.record:json;
+    if(data&&typeof data==='object'){
+      // 保留本地的sync配置（防止云端没有key导致断连）
+      const mySync=state.sync;
+      state=data;
+      state.sync=mySync; // 恢复本地同步配置
+      localStorage.setItem(LS_KEY,JSON.stringify(state));
+      setConn('connected','云端已连接');
+      renderAll();
+      addSyncLog('强制覆盖',true,'✅ 已替换本地数据！upfront='+state.upfront.length+'人, 合计¥'+upfrontTotal());
+      toast('✅ 已从云端覆盖！数据已更新');
+    } else { throw new Error('云端返回空数据'); }
+  }catch(e){
+    addSyncLog('强制覆盖',false,e.message.slice(0,100));
+    toast('❌ 失败：'+e.message.slice(0,50));
+    setConn('error','拉取失败');
+  }
+}
 /* 强制双向同步：先推本地→拉云端合并→再推合并结果（加延迟避免限流） */
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 async function forceBidirectionalSync(){
