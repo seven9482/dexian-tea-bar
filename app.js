@@ -138,6 +138,12 @@ async function pushSync(){
     }
     setConn('connected','云端已连接');
     addSyncLog('推送',true,`数据大小 ${body.length} 字符`);
+    // 验证：立即回读云端，确认数据真的存进去了
+    try{
+      const v=await fetch(JSONBIN_API+'/b/'+binId+'/latest',{method:'GET',headers:safeHeaders(state.sync?.key)});
+      const vt=await v.text().catch(()=>'');
+      addSyncLog('云端回读', true, '前80字: '+vt.substring(0,80));
+    }catch(e){ addSyncLog('云端回读',false,'回读失败:'+e.message.slice(0,50)); }
   }catch(e){
     lastSyncError='推送: '+e.message;
     console.warn('[推送失败]',lastSyncError);
@@ -159,13 +165,20 @@ async function pullSync(force){
       const msg='HTTP '+res.status+': '+txt.substring(0,200);
       throw new Error(msg);
     }
-    const json=await res.json();
-    const data=json.record||json.data;
+    const rawText=await res.text().catch(()=>'');
+    let json=null;
+    try{json=JSON.parse(rawText);}catch(e){}
+    // 兼容 JSONBin 两种返回格式：
+    //   默认包裹成 { record: {...} }；若带 X-Bin-Meta:false 则直接是数据对象
+    const data=(json&&typeof json.record==='object')?json.record:json;
+    // 诊断：显示原始返回内容（前120字）
+    addSyncLog('诊断', true, 'GET返回: '+rawText.substring(0,120));
     if(data&&typeof data==='object'){
+      const before=JSON.stringify(state);
       state=mergeState(data);
       localStorage.setItem(LS_KEY,JSON.stringify(state));
       setConn('connected','云端已连接');
-      renderAll();
+      if(JSON.stringify(state)!==before) renderAll(); // 仅数据变化时才重渲染，避免打断输入
       addSyncLog('拉取',true,`合并完成，upfront=${state.upfront.length}人`);
     } else { setConn('connected','云端已连接（空数据）'); addSyncLog('拉取',true,'云端为空'); }
   }catch(e){
@@ -189,7 +202,8 @@ function mergeState(server){
     srv.forEach(x=>{ if(x&&x.id!=null) map.set(x.id,x); });
     merged[k]=[...map.values()];
   });
-  if(!merged.sync) merged.sync={binId:'',key:'',auto:true};
+  // 若云端同步配置缺少 key（不该发生），保留本地已配置好的 key，避免拉取后断连
+  if(!merged.sync||!merged.sync.key) merged.sync=state.sync||{binId:'',key:'',auto:true};
   return merged;
 }
 async function initSync(){
@@ -607,7 +621,8 @@ async function testConnection(){
 }
 async function manualPush(){saveState();await pushSync();toast('推送完成，请查看上方日志');}
 async function manualPull(){await pullSync(true);toast('拉取完成，请查看上方日志');}
-/* 强制双向同步：先推本地→拉云端合并→再推合并结果 */
+/* 强制双向同步：先推本地→拉云端合并→再推合并结果（加延迟避免限流） */
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 async function forceBidirectionalSync(){
   if(!state.sync?.binId||!state.sync?.key){toast('未配置云端');return;}
   setConn('syncing','双向同步中…');
@@ -615,8 +630,10 @@ async function forceBidirectionalSync(){
   try{
     // 1. 推送本地数据
     await pushSync();
+    await sleep(800); // 避免触发 JSONBin 限流(403)
     // 2. 拉取云端数据并合并
     await pullSync(true);
+    await sleep(800);
     // 3. 再把合并后的结果推上去（确保两端一致）
     await pushSync();
     setConn('connected','云端已连接');
@@ -661,6 +678,8 @@ function init(){
   initSync();
   // 自动拉取云端最新数据（多设备近实时同步）
   setInterval(()=>{
+    // 正在设置页编辑配置时跳过，避免重渲染清空输入框
+    if(document.getElementById('page-settings')?.classList.contains('active')) return;
     if(state.sync?.binId && state.sync?.key){ pullSync(false); }
   }, 15000);
   // PWA
