@@ -93,6 +93,8 @@ img{display:block;}
 .btn-ghost{background:transparent;color:var(--muted);}
 .btn-ghost:hover{color:var(--text);}
 .btn-danger{background:#FBEAEA;color:var(--danger);}
+.btn-success{background:linear-gradient(135deg,#10b981,#059669);color:#fff;box-shadow:var(--shadow-sm);}
+.btn-success:hover{background:linear-gradient(135deg,#059669,#047857);}
 .btn-block{width:100%;justify-content:center;}
 
 /* 概览统计 */

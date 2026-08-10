@@ -252,7 +252,7 @@ function renderExpenses(){
         ${active.map(e=>rowHtml({ic:'fa-arrow-up',title:e.name,sub:`${esc(e.cat)} · ${fmtDate(e.date)}`,amt:e.amount,minus:true,onEdit:`openExpenseModal('${e.id}')`,onDel:`delExpense('${e.id}')`,extra:`<button class='icon-btn' title='标记完成' onclick='completeExpense("${e.id}")'><i class='fa-regular fa-circle-check'></i></button>`})).join('')||'<div class="empty">还没有支出记录</div>'}
       </div>
     </div>
-    ${historyHtml(done,'支出已归档',e=>`${esc(e.name)} · ${esc(e.cat)}`,e=>e.amount,true)}
+    ${historyHtml(done,'支出已归档',e=>`${esc(e.name)} · ${esc(e.cat)}`,e=>e.amount,true,'delExpense')}
   `;
 }
 
@@ -268,7 +268,7 @@ function renderIncome(){
         ${active.map(e=>rowHtml({ic:'fa-arrow-down',title:e.name,sub:fmtDate(e.date),amt:e.amount,minus:false,onEdit:`openIncomeModal('${e.id}')`,onDel:`delIncome('${e.id}')`,extra:`<button class='icon-btn' title='标记完成' onclick='completeIncome("${e.id}")'><i class='fa-regular fa-circle-check'></i></button>`})).join('')||'<div class="empty">还没有收入记录</div>'}
       </div>
     </div>
-    ${historyHtml(done,'收入已入账',e=>esc(e.name),e=>e.amount,false)}
+    ${historyHtml(done,'收入已入账',e=>esc(e.name),e=>e.amount,false,'delIncome')}
   `;
 }
 
@@ -281,8 +281,8 @@ function rowHtml(o){
     <div class="ops">${o.extra||''}<button class="icon-btn" onclick="${o.onEdit}"><i class="fa-regular fa-pen"></i></button><button class="icon-btn del" onclick="${o.onDel}"><i class="fa-regular fa-trash-can"></i></button></div>
   </div>`;
 }
-/* 历史折叠：按日期分组 */
-function historyHtml(items,titleText,labelFn,amtFn,minus){
+/* 历史折叠：按日期分组，支持删除 */
+function historyHtml(items,titleText,labelFn,amtFn,minus,delFn){
   if(!items.length) return '';
   const groups={};
   items.forEach(it=>{const d=it.date||'未知'; (groups[d]=groups[d]||[]).push(it);});
@@ -298,6 +298,7 @@ function historyHtml(items,titleText,labelFn,amtFn,minus){
         <div class="ic" style="background:var(--bg)"><i class="fa-solid ${minus?'fa-arrow-up':'fa-arrow-down'}"></i></div>
         <div class="main-col"><div class="title">${labelFn(it)}</div></div>
         <div class="amt ${minus?'minus':'plus'}">${minus?'−':'+'}${money(amtFn(it))}</div>
+        ${delFn?`<button class="icon-btn del" onclick="${delFn('${it.id}')}" title="删除此条归档"><i class="fa-regular fa-trash-can"></i></button>`:''}
       </div>`).join('')}
     </div>`).join('');
   return `<div class="card"><div class="card-head"><div class="card-title"><i class="fa-regular fa-folder-open"></i>${titleText}</div></div>${body}</div>`;
@@ -306,7 +307,10 @@ function historyHtml(items,titleText,labelFn,amtFn,minus){
 /* ---------- 渲染：前期经费（按人） ---------- */
 function renderUpfront(){
   let html=`<div class="card-head"><div class="card-title"><i class="fa-regular fa-hand-holding-dollar"></i>前期经费（按合伙人）</div>
-    <button class="btn btn-primary" onclick="addPerson()"><i class="fa-solid fa-user-plus"></i>添加合伙人</button></div>`;
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="addPerson()"><i class="fa-solid fa-user-plus"></i>添加合伙人</button>
+      <button class="btn btn-success" onclick="saveState();toast('✅ 已保存');pushSync()" style="font-weight:700"><i class="fa-solid fa-floppy-disk"></i>💾 保存并同步</button>
+    </div></div>`;
   if(!state.upfront.length){ html+='<div class="empty">还没有记录，点右上角添加合伙人</div>'; }
   state.upfront.forEach(p=>{
     const total=p.items.reduce((s,i)=>s+(+i.amount||0),0);
