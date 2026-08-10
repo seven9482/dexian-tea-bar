@@ -141,9 +141,7 @@ async function pullSync(force){
     const json=await res.json();
     const data=json.record||json.data;
     if(data&&typeof data==='object'){
-      state=Object.assign(seed(), data);
-      ['expenses','income','products','pricing','marketing','tasks','upfront'].forEach(k=>{ if(!state[k]) state[k]=[]; });
-      if(!state.sync) state.sync={binId:'',key:'',auto:true};
+      state=mergeState(data);
       localStorage.setItem(LS_KEY,JSON.stringify(state));
       setConn('connected','云端已连接');
       renderAll();
@@ -156,6 +154,20 @@ async function pullSync(force){
 }
 function schedulePush(){
   if(state.sync?.auto) pushSync();
+}
+/* 合并：保留两端数据（按 id 取并集，冲突时云端优先），避免互相覆盖 */
+function mergeState(server){
+  const merged=Object.assign(seed(), server);
+  ['expenses','income','products','pricing','marketing','tasks','upfront'].forEach(k=>{
+    const loc=Array.isArray(state[k])?state[k]:[];
+    const srv=Array.isArray(server[k])?server[k]:[];
+    const map=new Map();
+    loc.forEach(x=>{ if(x&&x.id!=null) map.set(x.id,x); });
+    srv.forEach(x=>{ if(x&&x.id!=null) map.set(x.id,x); });
+    merged[k]=[...map.values()];
+  });
+  if(!merged.sync) merged.sync={binId:'',key:'',auto:true};
+  return merged;
 }
 async function initSync(){
   const {binId,key}=state.sync||{};
@@ -332,6 +344,9 @@ function renderSettings(){
   document.getElementById('page-settings').innerHTML=`
     <div class="card">
       <div class="card-head"><div class="card-title"><i class="fa-regular fa-cloud"></i>云端同步（JSONBin）</div></div>
+      <div class="card-sub" style="font-size:12px;color:var(--muted);padding:0 4px 8px">📱 多设备同步：在已连上的设备点「复制我的配置串」，把生成的那一串通过微信发给另一台设备，在下面「粘贴配置串」里粘贴即可，不用手动填两个框。</div>
+      <div class="field"><label>① 粘贴对方发来的配置串（一键同步）</label><input class="input" id="cfgStr" placeholder="粘贴 bin=...&key=... 这一整串"><button class="btn btn-primary" style="margin-top:8px" onclick="importConfigString()"><i class="fa-solid fa-link"></i>粘贴并连接</button></div>
+      <div class="field"><label>② 或手动填写</label></div>
       <div class="field"><label>Bin ID</label><input class="input" id="setBinId" value="${esc(s.binId||'')}" placeholder="留空则自动创建新Bin"></div>
       <div class="field"><label>Access Key（API Key）</label><input class="input" id="setKey" value="${esc(s.key)}" placeholder="从 jsonbin.io 复制的 API Key" type="password"></div>
       <div class="setting-row"><div><div style="font-weight:600">自动同步</div><div style="font-size:12px;color:var(--muted)">每次修改后自动推送到云端</div></div><div class="switch ${s.auto?'on':''}" id="autoSw" onclick="toggleAuto()"></div></div>
@@ -342,6 +357,7 @@ function renderSettings(){
         <button class="btn btn-ghost" onclick="manualPull()"><i class="fa-solid fa-arrow-down"></i>拉取</button>
       </div>
       <div class="modal-actions" style="margin-top:8px">
+        <button class="btn btn-soft" onclick="copyConfigString()"><i class="fa-solid fa-copy"></i>📋 复制我的配置串</button>
         <button class="btn btn-soft" onclick="shareConfig()"><i class="fa-solid fa-qrcode"></i>📱 生成分享码（扫码同步）</button>
       </div>
       <div id="syncErrorBox"></div>
@@ -606,4 +622,34 @@ function shareConfig(){
   },50);
 }
 function copyShareUrl(){const i=document.getElementById('shareUrl');if(i){i.select();document.execCommand('copy');toast('链接已复制');}}
+function copyConfigString(){
+  const {binId,key}=state.sync||{};
+  if(!binId||!key){toast('请先连接云端再复制');return;}
+  const str='bin='+binId+'&key='+key;
+  const i=document.createElement('input');i.value=str;document.body.appendChild(i);i.select();
+  try{document.execCommand('copy');toast('配置串已复制，发给另一台设备即可');}catch(e){}
+  document.body.removeChild(i);
+}
+function importConfigString(){
+  const raw=document.getElementById('cfgStr')?.value?.trim()||'';
+  if(!raw){toast('请先粘贴配置串');return;}
+  let binId='',key='';
+  // 支持两种格式：bin=xxx&key=yyy  或  完整URL ?bin=xxx&key=yyy
+  try{
+    let q=raw;
+    if(raw.includes('?')) q=raw.split('?')[1];
+    if(raw.includes('://')){ const u=new URL(raw); q=u.search.slice(1); }
+    const p=new URLSearchParams(q);
+    binId=cleanKey(p.get('bin')||'');
+    key=cleanKey(p.get('key')||'');
+  }catch(e){}
+  if(!binId||!key){toast('配置串格式不对，请确认粘贴完整');return;}
+  document.getElementById('setBinId').value=binId;
+  document.getElementById('setKey').value=key;
+  state.sync.binId=binId;
+  state.sync.key=key;
+  saveState();
+  initSync();
+  toast('已导入并连接，正在拉取数据…');
+}
 document.addEventListener('DOMContentLoaded',init);
