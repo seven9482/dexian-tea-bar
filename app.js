@@ -341,6 +341,9 @@ function renderSettings(){
         <button class="btn btn-primary" onclick="manualPush()"><i class="fa-solid fa-arrow-up-from-bracket"></i>立即推送</button>
         <button class="btn btn-ghost" onclick="manualPull()"><i class="fa-solid fa-arrow-down"></i>拉取</button>
       </div>
+      <div class="modal-actions" style="margin-top:8px">
+        <button class="btn btn-soft" onclick="shareConfig()"><i class="fa-solid fa-qrcode"></i>📱 生成分享码（扫码同步）</button>
+      </div>
       <div id="syncErrorBox"></div>
       <div class="hint">连接状态以顶部/侧栏徽章显示：<b style="color:var(--success)">绿=已连接</b>、<b style="color:var(--danger)">红=未连接/失败</b>。<br><br>📋 <b>获取步骤：</b><br>① 打开 <a href="https://jsonbin.io" target="_blank">jsonbin.io</a>，注册/登录<br>② 点右上角头像 → <b>API Keys</b> → 创建一个 Key 并复制<br>③ Bin ID 留空点「保存并连接」会自动创建<br><br>💡 多人/多设备填写<b>相同的 Bin ID 和 Access Key</b> 即可共享数据。</div>
     </div>
@@ -564,6 +567,17 @@ function resetData(){if(confirm('确定清空所有数据并恢复示例？')){s
 /* ---------- 初始化 ---------- */
 function init(){
   loadState();
+  // 从 URL 参数自动应用云端配置（分享链接场景）
+  try{
+    const params=new URLSearchParams(location.search);
+    const ub=params.get('bin'), uk=params.get('key');
+    if(ub&&uk&&window.history){
+      state.sync.binId=cleanKey(ub);
+      state.sync.key=cleanKey(uk);
+      saveState();
+      location.replace(location.pathname); // 清除URL参数
+    }
+  }catch(e){console.warn('[URL配置]',e);}
   renderAll();
   document.getElementById('nav').addEventListener('click',e=>{const a=e.target.closest('.nav-item');if(a)switchPage(a.dataset.page);});
   document.getElementById('hamburger').addEventListener('click',()=>{document.getElementById('sidebar').classList.add('open');document.getElementById('backdrop').classList.add('show');});
@@ -572,4 +586,24 @@ function init(){
   // PWA
   if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 }
+
+/* ---------- 分享配置（生成二维码） ---------- */
+function shareConfig(){
+  const {binId,key}=state.sync||{};
+  if(!binId||!key){toast('请先连接云端再分享');return;}
+  const url=location.origin+location.pathname+'?bin='+encodeURIComponent(binId)+'&key='+encodeURIComponent(key);
+  const modalHtml=`
+    <div class="card-head"><div class="card-title"><i class="fa-solid fa-qrcode"></i>扫码同步配置</div></div>
+    <p style="font-size:13px;color:var(--muted)">用另一台手机/电脑扫描下方二维码，打开后会自动连到同一个云端仓库：</p>
+    <div id="qrBox" style="display:flex;justify-content:center;padding:16px;background:#fff;border-radius:14px;margin:12px 0"></div>
+    <div class="field"><label>或复制此链接发送</label><input class="input" id="shareUrl" value="${esc(url)}" readonly onclick="this.select()"></div>
+    <div class="modal-actions"><button class="btn btn-primary" onclick="copyShareUrl()"><i class="fa-regular fa-copy"></i>复制链接</button><button class="btn btn-ghost" onclick="closeModal()">关闭</button></div>`;
+  openModal(modalHtml);
+  setTimeout(()=>{
+    const box=document.getElementById('qrBox');
+    if(box&&window.QRCode){ new QRCode(box,{text:url,width:200,height:200}); }
+    else if(box){ box.innerHTML='<div style="color:var(--danger);font-size:13px">二维码库加载失败，请直接复制上方链接</div>'; }
+  },50);
+}
+function copyShareUrl(){const i=document.getElementById('shareUrl');if(i){i.select();document.execCommand('copy');toast('链接已复制');}}
 document.addEventListener('DOMContentLoaded',init);
