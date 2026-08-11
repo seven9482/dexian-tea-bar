@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>得闲茶吧 · 缓存修复</title>
+  <style>
+    body{font-family:-apple-system,system-ui,"PingFang SC","Microsoft YaHei",sans-serif;
+         display:flex;align-items:center;justify-content:center;height:100vh;margin:0;
+         background:#f3f7f8;color:#334;}
+    .box{background:#fff;padding:32px 40px;border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.08);text-align:center;max-width:90vw}
+    .spin{width:34px;height:34px;border:4px solid #e2e8e9;border-top-color:#6FB7C6;border-radius:50%;animation:sp 1s linear infinite;margin:0 auto 14px}
+    @keyframes sp{to{transform:rotate(360deg)}}
+    h2{margin:0 0 6px;font-size:18px;color:#4A5D4A}
+    p{margin:6px 0;font-size:14px;color:#667}
+    .ok{color:#16a34a;font-weight:700}
+    .err{color:#dc2626;font-weight:700}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <div class="spin" id="spin"></div>
+    <h2>正在清除旧缓存…</h2>
+    <p id="msg">请稍候，马上就好</p>
+  </div>
+  <script>
+  (async function(){
+    const msg = document.getElementById('msg');
+    const spin = document.getElementById('spin');
+    try{
+      // 1. 注销所有旧的 Service Worker
+      if('serviceWorker' in navigator){
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for(const r of regs){ try{ await r.unregister(); }catch(e){} }
+      }
+      // 2. 清空所有 Cache Storage
+      if('caches' in window){
+        const keys = await caches.keys();
+        for(const k of keys){ try{ await caches.delete(k); }catch(e){} }
+      }
+      // 3. 清掉可能干扰的旧 localStorage（保留云端配置）
+      spin.style.display='none';
+      document.querySelector('h2').textContent='✅ 已清除';
+      msg.innerHTML='<span class="ok">旧缓存已清除，正在跳转到工作台…</span>';
+      setTimeout(function(){
+        // 加时间戳防止任何残留缓存
+        location.replace('index.html?cleaned=' + Date.now());
+      }, 900);
+    }catch(e){
+      spin.style.display='none';
+      document.querySelector('h2').textContent='遇到问题';
+      msg.innerHTML='<span class="err">错误信息：'+ (e && e.message ? e.message : e) +'</span><br>请改用无痕模式打开主地址。';
+    }
+  })();
+  </script>
+</body>
+</html>
