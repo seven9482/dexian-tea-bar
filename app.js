@@ -698,6 +698,16 @@ function resetData(){if(confirm('确定清空所有数据并恢复示例？')){s
 
 /* ---------- 初始化 ---------- */
 function init(){
+  // 全局错误捕获：任何报错都显示在屏幕上，避免"静默卡死"
+  window.onerror=function(msg,src,line,col){
+    const box=document.getElementById('errBox');
+    if(box){ box.style.display='block'; box.textContent='⚠️ 页面运行出错：'+msg+' (行'+line+')'; }
+    return false;
+  };
+  // 先把所有点击监听绑上（即使后面渲染出错，页面照样能点）
+  document.getElementById('nav').addEventListener('click',e=>{const a=e.target.closest('.nav-item');if(a)switchPage(a.dataset.page);});
+  document.getElementById('hamburger').addEventListener('click',()=>{document.getElementById('sidebar').classList.add('open');document.getElementById('backdrop').classList.add('show');});
+  document.getElementById('backdrop').addEventListener('click',()=>{document.getElementById('sidebar').classList.remove('open');document.getElementById('backdrop').classList.remove('show');});
   loadState();
   // 从 URL 参数自动应用云端配置（分享链接场景）
   try{
@@ -708,12 +718,10 @@ function init(){
       state.sync.key=cleanKey(uk);
       saveState();
       location.replace(location.pathname); // 清除URL参数
+      return;
     }
   }catch(e){console.warn('[URL配置]',e);}
-  renderAll();
-  document.getElementById('nav').addEventListener('click',e=>{const a=e.target.closest('.nav-item');if(a)switchPage(a.dataset.page);});
-  document.getElementById('hamburger').addEventListener('click',()=>{document.getElementById('sidebar').classList.add('open');document.getElementById('backdrop').classList.add('show');});
-  document.getElementById('backdrop').addEventListener('click',()=>{document.getElementById('sidebar').classList.remove('open');document.getElementById('backdrop').classList.remove('show');});
+  try{ renderAll(); }catch(e){ console.error('[渲染失败]',e); const box=document.getElementById('errBox'); if(box){box.style.display='block';box.textContent='⚠️ 渲染出错：'+e.message;} }
   initSync();
   // 自动拉取云端最新数据（多设备近实时同步）
   setInterval(()=>{
